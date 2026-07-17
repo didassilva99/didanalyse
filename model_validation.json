@@ -1,0 +1,200 @@
+{
+  "Bundesliga": {
+    "matches_train": 214,
+    "matches_test": 92,
+    "alpha_1x2": 1.0,
+    "alpha_over": 0.62,
+    "alpha_btts": 1.0,
+    "outcome_base": [
+      0.4672897196261682,
+      0.2383177570093458,
+      0.29439252336448596
+    ],
+    "over_base": 0.6261682242990654,
+    "btts_base": 0.5794392523364486,
+    "rho": -0.04,
+    "brier": 0.60808875523849,
+    "baseline_brier": 0.6744997664500791,
+    "brier_improvement_pct": 9.845965041783938,
+    "accuracy": 0.4782608695652174,
+    "log_loss": 1.0204909279735923,
+    "over_brier": 0.22087664531041393,
+    "btts_brier": 0.2179870282406738
+  },
+  "Eredivisie": {
+    "matches_train": 214,
+    "matches_test": 92,
+    "alpha_1x2": 1.0,
+    "alpha_over": 0.58,
+    "alpha_btts": 1.0,
+    "outcome_base": [
+      0.4392523364485981,
+      0.2616822429906542,
+      0.29906542056074764
+    ],
+    "over_base": 0.616822429906542,
+    "btts_base": 0.6448598130841121,
+    "rho": 0.06,
+    "brier": 0.5796737569205213,
+    "baseline_brier": 0.6442370132952565,
+    "brier_improvement_pct": 10.02166206571954,
+    "accuracy": 0.5434782608695652,
+    "log_loss": 0.9839002863770799,
+    "over_brier": 0.23262401221525905,
+    "btts_brier": 0.23803018824125974
+  },
+  "LaLiga": {
+    "matches_train": 266,
+    "matches_test": 114,
+    "alpha_1x2": 0.78,
+    "alpha_over": 1.0,
+    "alpha_btts": 1.0,
+    "outcome_base": [
+      0.46616541353383456,
+      0.2556390977443609,
+      0.2781954887218045
+    ],
+    "over_base": 0.5075187969924813,
+    "btts_base": 0.5526315789473685,
+    "rho": -0.04,
+    "brier": 0.5831596910005409,
+    "baseline_brier": 0.6090979328019297,
+    "brier_improvement_pct": 4.2584682042950845,
+    "accuracy": 0.543859649122807,
+    "log_loss": 0.9832550696737153,
+    "over_brier": 0.24030616105392477,
+    "btts_brier": 0.23413832992987618
+  },
+  "Liga Portugal": {
+    "matches_train": 214,
+    "matches_test": 92,
+    "alpha_1x2": 0.66,
+    "alpha_over": 0.5,
+    "alpha_btts": 0.5,
+    "outcome_base": [
+      0.4205607476635514,
+      0.2523364485981308,
+      0.32710280373831774
+    ],
+    "over_base": 0.5607476635514018,
+    "btts_base": 0.4672897196261682,
+    "rho": -0.02,
+    "brier": 0.6285412473045867,
+    "baseline_brier": 0.6673299737588626,
+    "brier_improvement_pct": 5.812525733827155,
+    "accuracy": 0.4673913043478261,
+    "log_loss": 1.0453555872932847,
+    "over_brier": 0.256454709735967,
+    "btts_brier": 0.2506823695195075
+  },
+  "Ligue 1": {
+    "matches_train": 214,
+    "matches_test": 92,
+    "alpha_1x2": 0.84,
+    "alpha_over": 1.0,
+    "alpha_btts": 0.6,
+    "outcome_base": [
+      0.4953271028037383,
+      0.22429906542056074,
+      0.2803738317757009
+    ],
+    "over_base": 0.5093457943925234,
+    "btts_base": 0.48598130841121495,
+    "rho": 0.06,
+    "brier": 0.6490272630274625,
+    "baseline_brier": 0.6828828794616579,
+    "brier_improvement_pct": 4.957748605571292,
+    "accuracy": 0.43478260869565216,
+    "log_loss": 1.0680443719782309,
+    "over_brier": 0.23192522431958543,
+    "btts_brier": 0.2493462604292889
+  },
+  "Premier League": {
+    "matches_train": 266,
+    "matches_test": 114,
+    "alpha_1x2": 1.0,
+    "alpha_over": 0.5,
+    "alpha_btts": 0.5,
+    "outcome_base": [
+      0.424812030075188,
+      0.2744360902255639,
+      0.3007518796992481
+    ],
+    "over_base": 0.5375939849624061,
+    "btts_base": 0.5601503759398496,
+    "rho": -0.18,
+    "brier": 0.6110924102571647,
+    "baseline_brier": 0.6523922588425952,
+    "brier_improvement_pct": 6.33052401000287,
+    "accuracy": 0.47368421052631576,
+    "log_loss": 1.0234507869583653,
+    "over_brier": 0.24727712560691087,
+    "btts_brier": 0.24648954069139267
+  },
+  "Pro League": {
+    "matches_train": 217,
+    "matches_test": 94,
+    "alpha_1x2": 1.0,
+    "alpha_over": 0.5,
+    "alpha_btts": 0.52,
+    "outcome_base": [
+      0.4055299539170507,
+      0.2672811059907834,
+      0.3271889400921659
+    ],
+    "over_base": 0.4608294930875576,
+    "btts_base": 0.5345622119815668,
+    "rho": -0.06,
+    "brier": 0.6133912325401042,
+    "baseline_brier": 0.6519962425158696,
+    "brier_improvement_pct": 5.921047923037039,
+    "accuracy": 0.48936170212765956,
+    "log_loss": 1.0229248098840285,
+    "over_brier": 0.25832079394586277,
+    "btts_brier": 0.24685339047431296
+  },
+  "Serie A": {
+    "matches_train": 266,
+    "matches_test": 114,
+    "alpha_1x2": 0.82,
+    "alpha_over": 0.5,
+    "alpha_btts": 0.5,
+    "outcome_base": [
+      0.38345864661654133,
+      0.2744360902255639,
+      0.34210526315789475
+    ],
+    "over_base": 0.462406015037594,
+    "btts_base": 0.462406015037594,
+    "rho": 0.0,
+    "brier": 0.6063769745205184,
+    "baseline_brier": 0.652674920383666,
+    "brier_improvement_pct": 7.093569006134325,
+    "accuracy": 0.49122807017543857,
+    "log_loss": 1.0136424131143087,
+    "over_brier": 0.24952014174796447,
+    "btts_brier": 0.24760257359971832
+  },
+  "Süper Lig": {
+    "matches_train": 214,
+    "matches_test": 92,
+    "alpha_1x2": 0.76,
+    "alpha_over": 0.74,
+    "alpha_btts": 0.5,
+    "outcome_base": [
+      0.37850467289719625,
+      0.308411214953271,
+      0.3130841121495327
+    ],
+    "over_base": 0.5093457943925234,
+    "btts_base": 0.5560747663551402,
+    "rho": -0.18,
+    "brier": 0.6125409720439228,
+    "baseline_brier": 0.6443082175394091,
+    "brier_improvement_pct": 4.930442392432055,
+    "accuracy": 0.5,
+    "log_loss": 1.0198028981504372,
+    "over_brier": 0.24096131709744387,
+    "btts_brier": 0.25123403992230414
+  }
+}
