@@ -52,7 +52,7 @@ def transfer_score(connection, team_id: int) -> dict:
 
 
 st.set_page_config(
-    page_title="DID Analyse — Probabilidades de Futebol",
+    page_title="DID Analyze — Probabilidades de Futebol",
     page_icon="⚽",
     layout="wide",
     initial_sidebar_state="collapsed",
@@ -61,7 +61,7 @@ st.set_page_config(
 inject_styles()
 init_db()
 brand_header()
-st.caption("DID Analyse · Versão 1.1 · Todas as probabilidades numa página")
+st.caption("DID Analyze · Versão 1.1 · Todas as probabilidades numa página")
 page_intro()
 picker_header()
 
