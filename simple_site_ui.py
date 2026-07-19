@@ -214,7 +214,7 @@ def brand_header() -> None:
   <div class="brand-left">
     <div class="brand-mark">DA</div>
     <div>
-      <div class="brand-name">DID Analyse</div>
+      <div class="brand-name">DidAnalyze</div>
       <div class="brand-tagline">Probabilidades e inteligência de jogo</div>
     </div>
   </div>
@@ -361,6 +361,6 @@ def note(text: str) -> None:
 
 def footer() -> None:
     st.markdown(
-        '<div class="site-footer-simple">DID Analyse · Probabilidades produzidas por modelo estatístico. Não constituem garantia de resultado.</div>',
+        '<div class="site-footer-simple">DidAnalyze · Probabilidades produzidas por modelo estatístico. Não constituem garantia de resultado.</div>',
         unsafe_allow_html=True,
     )

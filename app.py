@@ -52,7 +52,7 @@ def transfer_score(connection, team_id: int) -> dict:
 
 
 st.set_page_config(
-    page_title="DID Analyze — Probabilidades de Futebol",
+    page_title="DidAnalyze — Probabilidades de Futebol",
     page_icon="⚽",
     layout="wide",
     initial_sidebar_state="collapsed",
@@ -61,7 +61,7 @@ st.set_page_config(
 inject_styles()
 init_db()
 brand_header()
-st.caption("DID Analyze · Versão 1.1 · Todas as probabilidades numa página")
+st.caption("DidAnalyze · Versão 1.2 · Todas as probabilidades numa página")
 page_intro()
 picker_header()
 
@@ -77,10 +77,21 @@ def total_goals_over(matrix, line: float) -> float:
 def render_count_market(prediction, key: str, label: str, lines: list[float], home: str, away: str) -> None:
     info = prediction["counts"].get(key, {})
     if not info.get("available"):
-        st.info(
-            f"Ainda não existem dados históricos suficientes para apresentar probabilidades de {label.lower()}. "
-            f"Cobertura atual: {info.get('coverage', 0)*100:.0f}%."
-        )
+        coverage = float(info.get("coverage", 0) or 0)
+        if key == "offsides" and coverage == 0:
+            st.warning(
+                "A base histórica 2025/26 não contém registos de foras de jogo "
+                "(cobertura: 0%). Por esse motivo, o modelo não apresenta "
+                "probabilidades neste mercado, evitando mostrar estimativas inventadas. "
+                "As probabilidades ficarão disponíveis quando forem carregados dados "
+                "de foras de jogo por equipa."
+            )
+        else:
+            st.info(
+                f"Ainda não existem dados históricos suficientes para apresentar "
+                f"probabilidades de {label.lower()}. "
+                f"Cobertura atual: {coverage*100:.0f}%."
+            )
         return
 
     stat_cards(
