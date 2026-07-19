@@ -61,7 +61,7 @@ st.set_page_config(
 inject_styles()
 init_db()
 brand_header()
-st.caption("DID Analyse · Versão limpa 1.0 · 8 competições · 2670 jogos")
+st.caption("DID Analyse · Versão 1.1 · Todas as probabilidades numa página")
 page_intro()
 picker_header()
 
@@ -258,120 +258,180 @@ confidence_badge(score)
 if game["assigned_referee"]:
     st.caption(f"Árbitro associado: {game['assigned_referee']}")
 
-summary_tab, goals_tab, halftime_tab, corners_tab, cards_tab, fouls_tab, offsides_tab = st.tabs(
-    ["Resumo", "Golos", "1.ª parte", "Cantos", "Cartões", "Faltas", "Foras de jogo"]
+# Todos os mercados são mostrados numa única página.
+# Isto evita que um visitante não repare nos separadores do Streamlit.
+
+section_title("1. Resultado final", "Probabilidades 1X2 e odds justas do modelo")
+outcomes = [
+    (game["home"], prediction["home_win"]),
+    ("Empate", prediction["draw"]),
+    (game["away"], prediction["away_win"]),
+]
+outcome_cards(outcomes)
+
+section_title("2. Dupla possibilidade", "Combinações dos três desfechos principais")
+probability_list(
+    [
+        (f"{game['home']} ou empate", prediction["home_win"] + prediction["draw"], ""),
+        (f"Empate ou {game['away']}", prediction["draw"] + prediction["away_win"], "blue"),
+        ("Sem empate", prediction["home_win"] + prediction["away_win"], "amber"),
+    ]
 )
 
-with summary_tab:
-    section_title("Resultado final", "Probabilidades 1X2 e odds justas do modelo")
-    outcomes = [
-        (game["home"], prediction["home_win"]),
-        ("Empate", prediction["draw"]),
-        (game["away"], prediction["away_win"]),
+section_title("3. Resultados exatos", "Os oito cenários individuais mais prováveis")
+score_cards(
+    [
+        (f"{home}–{away}", probability)
+        for (home, away), probability in prediction["exact_scores"][:8]
     ]
-    outcome_cards(outcomes)
+)
 
-    section_title("Dupla possibilidade", "Combinações dos três desfechos principais")
+section_title("4. Leitura rápida", "Indicadores centrais do confronto")
+favorite, favorite_probability = max(outcomes, key=lambda item: item[1])
+top_score, top_score_probability = prediction["exact_scores"][0]
+stat_cards(
+    [
+        ("Desfecho favorito", favorite, f"{favorite_probability*100:.1f}%"),
+        (
+            "Resultado líder",
+            f"{top_score[0]}–{top_score[1]}",
+            f"{top_score_probability*100:.1f}%",
+        ),
+        (
+            "Golos esperados",
+            f"{prediction['expected_home_goals'] + prediction['expected_away_goals']:.2f}",
+            "total do jogo",
+        ),
+        ("Amostra", str(prediction["data_matches"]), "jogos utilizados"),
+    ]
+)
+
+st.divider()
+
+matrix = prediction["score_matrix"]
+expected_total = prediction["expected_home_goals"] + prediction["expected_away_goals"]
+
+section_title("5. Golos esperados", "Produção ofensiva estimada de cada equipa")
+stat_cards(
+    [
+        (game["home"], f"{prediction['expected_home_goals']:.2f}", "golos esperados"),
+        (game["away"], f"{prediction['expected_away_goals']:.2f}", "golos esperados"),
+        ("Total esperado", f"{expected_total:.2f}", "golos"),
+        ("Ambas marcam", f"{prediction['btts_yes']*100:.1f}%", "probabilidade"),
+    ]
+)
+
+section_title("6. Mais / menos golos", "Linhas principais do total da partida")
+goal_rows = []
+for line in [0.5, 1.5, 2.5, 3.5, 4.5]:
+    over = prediction["over_25"] if line == 2.5 else total_goals_over(matrix, line)
+    goal_rows.extend(
+        [
+            (f"Mais de {str(line).replace('.', ',')}", over, ""),
+            (f"Menos de {str(line).replace('.', ',')}", 1 - over, "blue"),
+        ]
+    )
+probability_list(goal_rows)
+
+section_title("7. Ambas marcam e equipas a marcar", "Probabilidades derivadas dos resultados possíveis")
+home_scores = matrix_probability(matrix, lambda home, away: home >= 1)
+away_scores = matrix_probability(matrix, lambda home, away: away >= 1)
+probability_list(
+    [
+        ("Ambas marcam — Sim", prediction["btts_yes"], ""),
+        ("Ambas marcam — Não", prediction["btts_no"], "blue"),
+        (f"{game['home']} marca", home_scores, ""),
+        (f"{game['away']} marca", away_scores, "blue"),
+        (
+            f"{game['home']} sem sofrer",
+            matrix_probability(matrix, lambda home, away: away == 0),
+            "amber",
+        ),
+        (
+            f"{game['away']} sem sofrer",
+            matrix_probability(matrix, lambda home, away: home == 0),
+            "amber",
+        ),
+    ]
+)
+
+section_title("8. Golo nos primeiros 5 minutos")
+if prediction["first5"] is None:
+    note("Ainda não existem dados suficientes para calcular este mercado com confiança.")
+else:
     probability_list(
         [
-            (f"{game['home']} ou empate", prediction["home_win"] + prediction["draw"], ""),
-            (f"Empate ou {game['away']}", prediction["draw"] + prediction["away_win"], "blue"),
-            ("Sem empate", prediction["home_win"] + prediction["away_win"], "amber"),
+            ("Sim", prediction["first5"], ""),
+            ("Não", 1 - prediction["first5"], "blue"),
         ]
     )
 
-    section_title("Resultados exatos", "Cenários individuais mais prováveis")
-    score_cards(
-        [(f"{home}–{away}", probability) for (home, away), probability in prediction["exact_scores"][:8]]
-    )
+st.divider()
 
-    section_title("Leitura rápida", "Indicadores centrais do confronto")
-    favorite, favorite_probability = max(outcomes, key=lambda item: item[1])
-    top_score, top_score_probability = prediction["exact_scores"][0]
-    stat_cards(
-        [
-            ("Desfecho favorito", favorite, f"{favorite_probability*100:.1f}%"),
-            ("Resultado líder", f"{top_score[0]}–{top_score[1]}", f"{top_score_probability*100:.1f}%"),
-            ("Golos esperados", f"{prediction['expected_home_goals'] + prediction['expected_away_goals']:.2f}", "total do jogo"),
-            ("Amostra", str(prediction["data_matches"]), "jogos utilizados"),
-        ]
-    )
+section_title("9. Resultado ao intervalo", "Probabilidades 1X2 na primeira parte")
+outcome_cards(
+    [
+        (game["home"], prediction["ht_home"]),
+        ("Empate", prediction["ht_draw"]),
+        (game["away"], prediction["ht_away"]),
+    ]
+)
 
-with goals_tab:
-    matrix = prediction["score_matrix"]
-    expected_total = prediction["expected_home_goals"] + prediction["expected_away_goals"]
-    section_title("Produção ofensiva", "Estimativa de golos para cada equipa")
-    stat_cards(
-        [
-            (game["home"], f"{prediction['expected_home_goals']:.2f}", "golos esperados"),
-            (game["away"], f"{prediction['expected_away_goals']:.2f}", "golos esperados"),
-            ("Total esperado", f"{expected_total:.2f}", "golos"),
-            ("Ambas marcam", f"{prediction['btts_yes']*100:.1f}%", "probabilidade"),
-        ]
-    )
+section_title("10. Resultados exatos ao intervalo", "Cenários mais prováveis")
+score_cards(
+    [
+        (f"{home}–{away}", probability)
+        for (home, away), probability in prediction["ht_exact_scores"]
+    ]
+)
 
-    section_title("Mais / menos golos", "Linhas principais do total da partida")
-    goal_rows = []
-    for line in [0.5, 1.5, 2.5, 3.5, 4.5]:
-        over = prediction["over_25"] if line == 2.5 else total_goals_over(matrix, line)
-        goal_rows.extend(
-            [
-                (f"Mais de {str(line).replace('.', ',')}", over, ""),
-                (f"Menos de {str(line).replace('.', ',')}", 1 - over, "blue"),
-            ]
-        )
-    probability_list(goal_rows)
+st.divider()
 
-    section_title("Ambas marcam e equipas a marcar", "Probabilidades derivadas da matriz de resultados")
-    home_scores = matrix_probability(matrix, lambda home, away: home >= 1)
-    away_scores = matrix_probability(matrix, lambda home, away: away >= 1)
-    probability_list(
-        [
-            ("Ambas marcam — Sim", prediction["btts_yes"], ""),
-            ("Ambas marcam — Não", prediction["btts_no"], "blue"),
-            (f"{game['home']} marca", home_scores, ""),
-            (f"{game['away']} marca", away_scores, "blue"),
-            (f"{game['home']} sem sofrer", matrix_probability(matrix, lambda home, away: away == 0), "amber"),
-            (f"{game['away']} sem sofrer", matrix_probability(matrix, lambda home, away: home == 0), "amber"),
-        ]
-    )
+section_title("11. Cantos", "Estimativas e linhas de mais/menos")
+render_count_market(
+    prediction,
+    "corners",
+    "Cantos",
+    [8.5, 9.5, 10.5],
+    game["home"],
+    game["away"],
+)
 
-    section_title("Golo nos primeiros 5 minutos")
-    if prediction["first5"] is None:
-        note("Ainda não existem dados suficientes para calcular este mercado com confiança.")
-    else:
-        probability_list(
-            [
-                ("Sim", prediction["first5"], ""),
-                ("Não", 1 - prediction["first5"], "blue"),
-            ]
-        )
+st.divider()
 
-with halftime_tab:
-    section_title("Resultado ao intervalo", "Probabilidades 1X2 na primeira parte")
-    outcome_cards(
-        [
-            (game["home"], prediction["ht_home"]),
-            ("Empate", prediction["ht_draw"]),
-            (game["away"], prediction["ht_away"]),
-        ]
-    )
-    section_title("Resultados exatos ao intervalo", "Cenários mais prováveis")
-    score_cards(
-        [(f"{home}–{away}", probability) for (home, away), probability in prediction["ht_exact_scores"]]
-    )
+section_title("12. Cartões amarelos", "Estimativas e linhas de mais/menos")
+render_count_market(
+    prediction,
+    "yellows",
+    "Cartões amarelos",
+    [3.5, 4.5, 5.5],
+    game["home"],
+    game["away"],
+)
 
-with corners_tab:
-    render_count_market(prediction, "corners", "Cantos", [8.5, 9.5, 10.5], game["home"], game["away"])
+st.divider()
 
-with cards_tab:
-    render_count_market(prediction, "yellows", "Cartões amarelos", [3.5, 4.5, 5.5], game["home"], game["away"])
+section_title("13. Faltas", "Estimativas e linhas de mais/menos")
+render_count_market(
+    prediction,
+    "fouls",
+    "Faltas",
+    [21.5, 23.5, 25.5],
+    game["home"],
+    game["away"],
+)
 
-with fouls_tab:
-    render_count_market(prediction, "fouls", "Faltas", [21.5, 23.5, 25.5], game["home"], game["away"])
+st.divider()
 
-with offsides_tab:
-    render_count_market(prediction, "offsides", "Foras de jogo", [2.5, 3.5, 4.5], game["home"], game["away"])
+section_title("14. Foras de jogo", "Estimativas e linhas de mais/menos")
+render_count_market(
+    prediction,
+    "offsides",
+    "Foras de jogo",
+    [2.5, 3.5, 4.5],
+    game["home"],
+    game["away"],
+)
 
 with st.expander("Como são calculadas estas probabilidades?"):
     st.write(
