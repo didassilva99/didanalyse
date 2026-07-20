@@ -11,26 +11,31 @@ def inject_styles() -> None:
         """
 <style>
 :root {
-  --bg: #f6f8fb;
-  --surface: #ffffff;
-  --surface-soft: #f8fafc;
-  --text: #172033;
-  --muted: #6b7280;
-  --line: #e5e7eb;
-  --green: #16a34a;
-  --green-dark: #15803d;
-  --green-soft: #ecfdf3;
-  --blue: #2563eb;
-  --blue-soft: #eff6ff;
-  --amber: #d97706;
-  --amber-soft: #fffbeb;
-  --red: #dc2626;
-  --red-soft: #fef2f2;
-  --shadow: 0 10px 30px rgba(15, 23, 42, .055);
+  --bg: #060910;
+  --bg-soft: #0a101b;
+  --surface: #0d1522;
+  --surface-raised: #111c2c;
+  --surface-soft: #101a29;
+  --text: #f3f7fb;
+  --muted: #8c9caf;
+  --line: rgba(148, 163, 184, .16);
+  --green: #35e887;
+  --green-dark: #62f3a0;
+  --green-soft: rgba(53, 232, 135, .11);
+  --blue: #38bdf8;
+  --blue-soft: rgba(56, 189, 248, .11);
+  --amber: #fbbf24;
+  --amber-soft: rgba(251, 191, 36, .11);
+  --red: #fb7185;
+  --red-soft: rgba(251, 113, 133, .11);
+  --shadow: 0 18px 55px rgba(0, 0, 0, .32);
 }
 
 html, body, [data-testid="stAppViewContainer"], .stApp {
-  background: var(--bg) !important;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(53, 232, 135, .075), transparent 30%),
+    radial-gradient(circle at 90% 8%, rgba(56, 189, 248, .065), transparent 28%),
+    var(--bg) !important;
   color: var(--text) !important;
 }
 
@@ -44,7 +49,7 @@ html, body, [data-testid="stAppViewContainer"], .stApp {
 }
 
 header[data-testid="stHeader"] {
-  background: rgba(246, 248, 251, .92) !important;
+  background: rgba(6, 9, 16, .86) !important;
   backdrop-filter: blur(10px);
 }
 
@@ -74,8 +79,8 @@ header[data-testid="stHeader"] {
   border-radius: 12px;
   display: grid;
   place-items: center;
-  background: var(--text);
-  color: white;
+  background: linear-gradient(135deg, var(--green), var(--blue));
+  color: #03120a;
   font-weight: 900;
   letter-spacing: -.05em;
 }
@@ -94,9 +99,9 @@ header[data-testid="stHeader"] {
 .page-intro {
   padding: 1.05rem 1.15rem;
   border: 1px solid var(--line);
-  border-left: 4px solid var(--green);
+  border-left: 3px solid var(--green);
   border-radius: 16px;
-  background: var(--surface);
+  background: linear-gradient(145deg, rgba(17, 28, 44, .96), rgba(10, 17, 28, .96));
   box-shadow: var(--shadow);
   margin-bottom: .85rem;
 }
@@ -209,8 +214,8 @@ header[data-testid="stHeader"] {
   min-height: 98px;
 }
 .outcome-card-simple.highlight {
-  border-color: #86efac;
-  background: var(--green-soft);
+  border-color: rgba(53, 232, 135, .52);
+  background: linear-gradient(145deg, rgba(53, 232, 135, .13), rgba(13, 21, 34, .96));
 }
 .outcome-label-simple {
   color: var(--muted);
@@ -297,7 +302,7 @@ header[data-testid="stHeader"] {
 }
 .prob-row-simple {
   padding: .62rem 0;
-  border-bottom: 1px solid #eef2f7;
+  border-bottom: 1px solid var(--line);
 }
 .prob-row-simple:last-child { border-bottom: none; }
 .prob-head-simple {
@@ -314,7 +319,7 @@ header[data-testid="stHeader"] {
 }
 .prob-track-simple {
   height: 5px;
-  background: #edf2f7;
+  background: #182334;
   border-radius: 999px;
   overflow: hidden;
   margin-top: .3rem;
@@ -328,9 +333,9 @@ header[data-testid="stHeader"] {
 .prob-fill-simple.amber { background: var(--amber); }
 
 .note-simple {
-  border: 1px solid #dbeafe;
+  border: 1px solid rgba(56, 189, 248, .24);
   background: var(--blue-soft);
-  color: #1e3a8a;
+  color: #bae6fd;
   border-radius: 12px;
   padding: .68rem .75rem;
   font-size: .73rem;
@@ -362,8 +367,9 @@ header[data-testid="stHeader"] {
 }
 
 div[data-baseweb="select"] > div {
-  background: white !important;
+  background: var(--surface-raised) !important;
   border-color: var(--line) !important;
+  color: var(--text) !important;
   border-radius: 10px !important;
 }
 
@@ -429,7 +435,163 @@ div[role="radiogroup"] label {
     grid-template-columns: repeat(2, minmax(0,1fr));
   }
 }
+
+/* Controlos nativos do Streamlit */
+.stApp, .stApp p, .stApp label, .stApp span {
+  color: var(--text);
+}
+
+[data-testid="stSidebar"] {
+  background:
+    linear-gradient(180deg, rgba(13, 21, 34, .98), rgba(6, 9, 16, .98)) !important;
+  box-shadow: 16px 0 45px rgba(0, 0, 0, .22);
+}
+
+[data-testid="stSidebar"] * {
+  color: var(--text);
+}
+
+[data-testid="stSidebarCollapsedControl"] button,
+[data-testid="collapsedControl"] button {
+  background: var(--surface-raised) !important;
+  border: 1px solid var(--line) !important;
+  color: var(--text) !important;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, .28);
+}
+
+div[data-baseweb="select"] > div,
+div[data-baseweb="input"] > div,
+[data-testid="stNumberInput"] input,
+[data-testid="stTextInput"] input,
+[data-testid="stTextArea"] textarea,
+[data-testid="stDateInput"] input,
+[data-testid="stTimeInput"] input {
+  background: var(--surface-raised) !important;
+  border-color: var(--line) !important;
+  color: var(--text) !important;
+  caret-color: var(--green);
+}
+
+div[data-baseweb="popover"],
+div[data-baseweb="menu"],
+ul[role="listbox"] {
+  background: #111c2c !important;
+  border: 1px solid var(--line) !important;
+}
+
+li[role="option"] {
+  color: var(--text) !important;
+}
+
+li[role="option"]:hover,
+li[aria-selected="true"] {
+  background: rgba(53, 232, 135, .11) !important;
+}
+
+.stButton > button,
+.stDownloadButton > button,
+.stFormSubmitButton > button {
+  background: linear-gradient(135deg, rgba(53, 232, 135, .16), rgba(56, 189, 248, .11));
+  border: 1px solid rgba(53, 232, 135, .28);
+  color: var(--text);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .18);
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+
+.stButton > button:hover,
+.stDownloadButton > button:hover,
+.stFormSubmitButton > button:hover {
+  transform: translateY(-1px);
+  border-color: rgba(53, 232, 135, .62);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, .28), 0 0 24px rgba(53, 232, 135, .08);
+}
+
+button[kind="primary"],
+.stFormSubmitButton > button[kind="primary"] {
+  background: linear-gradient(135deg, var(--green), #26c6da) !important;
+  color: #03120a !important;
+  border-color: transparent !important;
+}
+
+div[role="radiogroup"] label {
+  background: rgba(13, 21, 34, .88);
+  border-color: var(--line);
+  color: var(--muted);
+  transition: all .18s ease;
+}
+
+div[role="radiogroup"] label:hover {
+  border-color: rgba(53, 232, 135, .38);
+  color: var(--text);
+}
+
+div[role="radiogroup"] label:has(input:checked) {
+  background: linear-gradient(135deg, rgba(53, 232, 135, .16), rgba(56, 189, 248, .10));
+  border-color: rgba(53, 232, 135, .48);
+  color: var(--text);
+  box-shadow: 0 0 20px rgba(53, 232, 135, .06);
+}
+
+details[data-testid="stExpander"] {
+  background: linear-gradient(145deg, rgba(17, 28, 44, .96), rgba(10, 17, 28, .96));
+  border-color: var(--line) !important;
+}
+
+details[data-testid="stExpander"][open] {
+  border-color: rgba(53, 232, 135, .26) !important;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, .18);
+}
+
+[data-testid="stAlert"] {
+  background: var(--surface-raised) !important;
+  border: 1px solid var(--line) !important;
+  color: var(--text) !important;
+}
+
+hr {
+  border-color: var(--line) !important;
+}
+
+.brand-mark {
+  box-shadow: 0 0 26px rgba(53, 232, 135, .18);
+}
+
+.page-intro,
+.match-hero-simple,
+.outcome-card-simple,
+.stat-card-simple,
+.score-card-simple,
+.prob-list-simple {
+  backdrop-filter: blur(12px);
+}
+
+.outcome-card-simple,
+.stat-card-simple,
+.score-card-simple {
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+
+.outcome-card-simple:hover,
+.stat-card-simple:hover,
+.score-card-simple:hover {
+  transform: translateY(-2px);
+  border-color: rgba(56, 189, 248, .26);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, .24);
+}
+
+.prob-track-simple {
+  background: #1a2638;
+}
+
+.prob-fill-simple {
+  box-shadow: 0 0 14px rgba(53, 232, 135, .24);
+}
+
+.site-footer-simple {
+  opacity: .72;
+}
 </style>
+
         """,
         unsafe_allow_html=True,
     )
@@ -443,7 +605,7 @@ def brand_header() -> None:
     <div class="brand-mark">DA</div>
     <div>
       <div class="brand-name">DidAnalyze</div>
-      <div class="brand-tagline">Análise estatística de futebol</div>
+      <div class="brand-tagline">Football intelligence · probabilities & challenges</div>
     </div>
   </div>
 </div>
@@ -457,7 +619,7 @@ def page_intro() -> None:
         """
 <div class="page-intro">
   <div class="page-kicker">Análise pré-jogo</div>
-  <div class="page-title">Probabilidades sem ruído.</div>
+  <div class="page-title">Decisões mais claras. Dados mais fortes.</div>
   <div class="page-copy">
     Escolhe um encontro, consulta primeiro os mercados principais e abre apenas
     os detalhes de que precisas.

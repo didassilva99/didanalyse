@@ -88,15 +88,15 @@ st.markdown(
   border: 1px solid var(--line);
   border-radius: 16px;
   padding: 1rem;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, .05);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, .24);
 }
 .challenge-card.active {
-  border-color: #86efac;
-  background: linear-gradient(180deg, #f0fdf4, #ffffff);
+  border-color: rgba(53, 232, 135, .44);
+  background: linear-gradient(145deg, rgba(53, 232, 135, .12), rgba(13, 21, 34, .96));
 }
 .challenge-card.failed {
-  border-color: #fecaca;
-  background: linear-gradient(180deg, #fef2f2, #ffffff);
+  border-color: rgba(251, 113, 133, .42);
+  background: linear-gradient(145deg, rgba(251, 113, 133, .10), rgba(13, 21, 34, .96));
 }
 .challenge-kicker {
   color: var(--muted);
@@ -129,24 +129,24 @@ st.markdown(
   border-radius: 999px;
   padding: .3rem .55rem;
   background: var(--green-soft);
-  border: 1px solid #bbf7d0;
+  border: 1px solid rgba(53, 232, 135, .30);
   color: var(--green-dark);
   font-size: .68rem;
   font-weight: 820;
 }
 .challenge-status.waiting {
   background: var(--blue-soft);
-  border-color: #bfdbfe;
-  color: #1d4ed8;
+  border-color: rgba(56, 189, 248, .28);
+  color: #7dd3fc;
 }
 .challenge-status.failed {
-  background: #fef2f2;
-  border-color: #fecaca;
-  color: #991b1b;
+  background: var(--red-soft);
+  border-color: rgba(251, 113, 133, .30);
+  color: #fda4af;
 }
 .challenge-progress {
   height: 7px;
-  background: #e9eef5;
+  background: #182334;
   border-radius: 999px;
   overflow: hidden;
   margin-top: .65rem;
@@ -183,7 +183,7 @@ st.markdown(
   color: var(--text);
   font-size: .78rem;
   padding: .82rem .8rem;
-  border-bottom: 1px solid #eef2f7;
+  border-bottom: 1px solid var(--line);
   vertical-align: middle;
 }
 .challenge-table tr:last-child td {
@@ -205,7 +205,7 @@ st.markdown(
 }
 .challenge-step.lost {
   background: #fef2f2;
-  color: #991b1b;
+  color: #fda4af;
 }
 .result-pill {
   display: inline-block;
@@ -214,7 +214,7 @@ st.markdown(
   font-size: .67rem;
   font-weight: 820;
   background: var(--blue-soft);
-  color: #1d4ed8;
+  color: #7dd3fc;
 }
 .result-pill.won {
   background: var(--green-soft);
@@ -222,15 +222,15 @@ st.markdown(
 }
 .result-pill.lost {
   background: #fef2f2;
-  color: #991b1b;
+  color: #fda4af;
 }
 .result-pill.void {
   background: var(--amber-soft);
-  color: #92400e;
+  color: #fcd34d;
 }
 .accumulator-leg {
   padding: .34rem 0;
-  border-bottom: 1px dashed #e5e7eb;
+  border-bottom: 1px dashed var(--line);
   line-height: 1.35;
 }
 .accumulator-leg:last-child {
@@ -304,27 +304,27 @@ st.markdown(
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: #eef2f7;
-  border: 1px solid #dbe2ea;
-  color: #7c8798;
+  background: #172234;
+  border: 1px solid var(--line);
+  color: #7f91a7;
   font-size: .59rem;
   font-weight: 900;
 }
 .stage-dot.won {
   background: var(--green-soft);
-  border-color: #86efac;
+  border-color: rgba(53, 232, 135, .42);
   color: var(--green-dark);
 }
 .stage-dot.current {
   background: var(--amber-soft);
-  border-color: #fbbf24;
-  color: #92400e;
+  border-color: rgba(251, 191, 36, .65);
+  color: #fcd34d;
   box-shadow: 0 0 0 3px rgba(251, 191, 36, .13);
 }
 .stage-dot.lost {
   background: #fef2f2;
-  border-color: #fca5a5;
-  color: #991b1b;
+  border-color: rgba(251, 113, 133, .62);
+  color: #fda4af;
 }
 .current-bet-card {
   background: var(--surface);
@@ -383,7 +383,7 @@ st.markdown(
 .history-table th,
 .history-table td {
   padding: .62rem .55rem;
-  border-bottom: 1px solid #eef2f7;
+  border-bottom: 1px solid var(--line);
   text-align: left;
   font-size: .72rem;
 }
@@ -403,6 +403,34 @@ st.markdown(
   }
 }
 
+.challenge-card {
+  background: linear-gradient(145deg, rgba(17, 28, 44, .97), rgba(10, 17, 28, .97));
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+.challenge-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(56, 189, 248, .25);
+  box-shadow: 0 16px 38px rgba(0, 0, 0, .30);
+}
+.challenge-progress > span {
+  box-shadow: 0 0 16px rgba(53, 232, 135, .28);
+}
+.challenge-table-wrap,
+.current-bet-card {
+  background: linear-gradient(145deg, rgba(17, 28, 44, .97), rgba(10, 17, 28, .97));
+  box-shadow: 0 14px 36px rgba(0, 0, 0, .18);
+}
+.current-bet-odd,
+.challenge-target,
+.accumulator-odd {
+  text-shadow: 0 0 18px rgba(53, 232, 135, .16);
+}
+.current-bet-stat {
+  border: 1px solid var(--line);
+}
+.stage-dot.current {
+  box-shadow: 0 0 0 3px rgba(251, 191, 36, .10), 0 0 20px rgba(251, 191, 36, .12);
+}
 </style>
     """,
     unsafe_allow_html=True,
