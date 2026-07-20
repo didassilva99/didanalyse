@@ -5,8 +5,10 @@ from html import escape
 import base64
 import hmac
 import json
+from math import prod
 from pathlib import Path
 
+import pandas as pd
 import requests
 
 import streamlit as st
@@ -68,7 +70,6 @@ st.set_page_config(
 inject_styles()
 init_db()
 brand_header()
-st.caption("DidAnalyze · Versão 1.5 · Painel privado de desafios")
 
 st.markdown(
     """
@@ -227,12 +228,181 @@ st.markdown(
   background: var(--amber-soft);
   color: #92400e;
 }
+.accumulator-leg {
+  padding: .34rem 0;
+  border-bottom: 1px dashed #e5e7eb;
+  line-height: 1.35;
+}
+.accumulator-leg:last-child {
+  border-bottom: none;
+}
+.accumulator-leg-number {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  margin-right: .35rem;
+  border-radius: 50%;
+  background: var(--blue-soft);
+  color: var(--blue);
+  font-size: .64rem;
+  font-weight: 900;
+}
+.accumulator-leg-meta {
+  color: var(--muted);
+  font-size: .67rem;
+  margin-left: 1.65rem;
+}
+.accumulator-odd {
+  color: var(--green-dark);
+  font-weight: 900;
+  white-space: nowrap;
+}
 @media (max-width: 900px) {
   .challenge-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
 }
 @media (max-width: 600px) {
   .challenge-grid { grid-template-columns: 1fr; }
 }
+
+.challenge-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: .55rem;
+}
+.challenge-card {
+  border-radius: 13px;
+  padding: .78rem;
+  box-shadow: none;
+}
+.challenge-target {
+  font-size: 1.25rem;
+  margin-top: .38rem;
+}
+.challenge-meta {
+  font-size: .66rem;
+}
+.challenge-status {
+  margin-top: .5rem;
+  padding: .25rem .46rem;
+  font-size: .63rem;
+}
+.stage-line {
+  display: grid;
+  grid-template-columns: repeat(15, minmax(20px, 1fr));
+  align-items: start;
+  gap: .22rem;
+  margin: .65rem 0 .9rem;
+}
+.stage-item {
+  text-align: center;
+  min-width: 0;
+}
+.stage-dot {
+  width: 24px;
+  height: 24px;
+  margin: 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #eef2f7;
+  border: 1px solid #dbe2ea;
+  color: #7c8798;
+  font-size: .59rem;
+  font-weight: 900;
+}
+.stage-dot.won {
+  background: var(--green-soft);
+  border-color: #86efac;
+  color: var(--green-dark);
+}
+.stage-dot.current {
+  background: var(--amber-soft);
+  border-color: #fbbf24;
+  color: #92400e;
+  box-shadow: 0 0 0 3px rgba(251, 191, 36, .13);
+}
+.stage-dot.lost {
+  background: #fef2f2;
+  border-color: #fca5a5;
+  color: #991b1b;
+}
+.current-bet-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: .88rem;
+}
+.current-bet-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: .8rem;
+}
+.current-bet-title {
+  color: var(--text);
+  font-size: .94rem;
+  font-weight: 900;
+}
+.current-bet-subtitle {
+  color: var(--muted);
+  font-size: .68rem;
+  margin-top: .14rem;
+}
+.current-bet-odd {
+  color: var(--green-dark);
+  font-size: 1.25rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+.current-bet-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0,1fr));
+  gap: .45rem;
+  margin-top: .72rem;
+}
+.current-bet-stat {
+  background: var(--surface-soft);
+  border-radius: 10px;
+  padding: .55rem;
+}
+.current-bet-stat span {
+  display: block;
+  color: var(--muted);
+  font-size: .61rem;
+}
+.current-bet-stat strong {
+  display: block;
+  color: var(--text);
+  font-size: .86rem;
+  margin-top: .12rem;
+}
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.history-table th,
+.history-table td {
+  padding: .62rem .55rem;
+  border-bottom: 1px solid #eef2f7;
+  text-align: left;
+  font-size: .72rem;
+}
+.history-table th {
+  color: var(--muted);
+  font-size: .62rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+@media (max-width: 760px) {
+  .stage-line {
+    grid-template-columns: repeat(8, minmax(22px, 1fr));
+    row-gap: .5rem;
+  }
+  .current-bet-stats {
+    grid-template-columns: 1fr;
+  }
+}
+
 </style>
     """,
     unsafe_allow_html=True,
@@ -317,6 +487,184 @@ def challenge_bets(challenge: dict) -> dict[int, dict]:
     return bets
 
 
+def safe_float(value, default: float = 0.0) -> float:
+    try:
+        if value is None or pd.isna(value):
+            return float(default)
+        return float(str(value).replace(",", "."))
+    except (TypeError, ValueError):
+        return float(default)
+
+
+def normalize_selections(bet: dict) -> list[dict]:
+    """Lê acumuladores novos e converte apostas antigas de uma seleção."""
+    raw = bet.get("selecoes")
+    selections: list[dict] = []
+
+    if isinstance(raw, list):
+        for item in raw:
+            if not isinstance(item, dict):
+                continue
+            selections.append(
+                {
+                    "competicao": str(item.get("competicao") or "").strip(),
+                    "jogo": str(item.get("jogo") or "").strip(),
+                    "selecao": str(item.get("selecao") or "").strip(),
+                    "data": str(item.get("data") or "").strip(),
+                    "hora": str(item.get("hora") or "").strip(),
+                    "odd": safe_float(item.get("odd"), 0.0),
+                }
+            )
+
+    if selections:
+        return selections
+
+    # Compatibilidade com a versão anterior, que guardava apenas uma seleção.
+    if str(bet.get("jogo") or "").strip() or str(bet.get("selecao") or "").strip():
+        return [
+            {
+                "competicao": str(bet.get("competicao") or "").strip(),
+                "jogo": str(bet.get("jogo") or "").strip(),
+                "selecao": str(bet.get("selecao") or "").strip(),
+                "data": str(bet.get("data") or "").strip(),
+                "hora": str(bet.get("hora") or "").strip(),
+                "odd": safe_float(bet.get("odd_escolhida"), 0.0),
+            }
+        ]
+
+    return []
+
+
+def combined_odd(bet: dict, target_odd: float) -> float:
+    selections = normalize_selections(bet)
+    valid_odds = [
+        safe_float(item.get("odd"), 0.0)
+        for item in selections
+        if safe_float(item.get("odd"), 0.0) > 1.0
+    ]
+
+    if valid_odds:
+        return float(prod(valid_odds))
+
+    legacy = safe_float(
+        bet.get("odd_combinada") or bet.get("odd_escolhida"),
+        0.0,
+    )
+    return legacy if legacy > 1.0 else float(target_odd)
+
+
+def editor_rows_for_bet(bet: dict, target_odd: float) -> list[dict]:
+    selections = normalize_selections(bet)
+    if not selections:
+        selections = [
+            {
+                "competicao": "",
+                "jogo": "",
+                "selecao": "",
+                "data": date.today().isoformat(),
+                "hora": "15:00",
+                "odd": round(float(target_odd), 2),
+            }
+        ]
+
+    return [
+        {
+            "Competição": item.get("competicao", ""),
+            "Jogo": item.get("jogo", ""),
+            "Seleção / mercado": item.get("selecao", ""),
+            "Data": item.get("data", ""),
+            "Hora": item.get("hora", ""),
+            "Odd": safe_float(item.get("odd"), target_odd),
+        }
+        for item in selections
+    ]
+
+
+def selections_from_editor(editor_data) -> tuple[list[dict], list[str]]:
+    if hasattr(editor_data, "to_dict"):
+        records = editor_data.to_dict(orient="records")
+    else:
+        records = list(editor_data or [])
+
+    selections: list[dict] = []
+    errors: list[str] = []
+
+    for index, row in enumerate(records, start=1):
+        competition = str(row.get("Competição") or "").strip()
+        game = str(row.get("Jogo") or "").strip()
+        market = str(row.get("Seleção / mercado") or "").strip()
+        game_date = str(row.get("Data") or "").strip()
+        game_time = str(row.get("Hora") or "").strip()
+        odd = safe_float(row.get("Odd"), 0.0)
+
+        # Ignora uma linha totalmente vazia criada pelo editor.
+        if not any([competition, game, market, game_date, game_time]) and odd <= 0:
+            continue
+
+        if not game:
+            errors.append(f"Seleção {index}: falta o jogo.")
+        if not market:
+            errors.append(f"Seleção {index}: falta a seleção ou mercado.")
+        if odd <= 1.0:
+            errors.append(f"Seleção {index}: a odd tem de ser superior a 1,00.")
+
+        selections.append(
+            {
+                "competicao": competition,
+                "jogo": game,
+                "selecao": market,
+                "data": game_date,
+                "hora": game_time,
+                "odd": round(float(odd), 3),
+            }
+        )
+
+    if not selections:
+        errors.append("Adiciona pelo menos uma seleção ao acumulador.")
+
+    return selections, errors
+
+
+def accumulator_html(bet: dict) -> str:
+    selections = normalize_selections(bet)
+    if not selections:
+        return "Por definir"
+
+    lines = []
+    for index, item in enumerate(selections, start=1):
+        game = escape(str(item.get("jogo") or "Jogo por definir"))
+        market = escape(str(item.get("selecao") or "Seleção por definir"))
+        competition = escape(str(item.get("competicao") or ""))
+        date_value = escape(str(item.get("data") or ""))
+        time_value = escape(str(item.get("hora") or ""))
+        odd = safe_float(item.get("odd"), 0.0)
+
+        meta_parts = [part for part in [competition, date_value, time_value] if part]
+        meta = " · ".join(meta_parts)
+        meta_html = (
+            f'<div class="accumulator-leg-meta">{meta}</div>'
+            if meta
+            else ""
+        )
+        odd_html = (
+            f' <span class="accumulator-odd">@ {odd_text(odd)}</span>'
+            if odd > 1.0
+            else ""
+        )
+
+        lines.append(
+            f"""
+<div class="accumulator-leg">
+  <span class="accumulator-leg-number">{index}</span>
+  <strong>{game}</strong> — {market}{odd_html}
+  {meta_html}
+</div>
+            """
+        )
+
+    return "".join(lines)
+
+
 def challenge_summary(
     challenge: dict,
     target_odd: float,
@@ -336,17 +684,13 @@ def challenge_summary(
 
         result = result_key(bet.get("resultado"))
         if result == "won":
-            used_odd = float(bet.get("odd_escolhida") or target_odd)
-            bank *= used_odd
+            bank *= combined_odd(bet, target_odd)
             won += 1
         elif result == "lost":
             bank = 0.0
             lost = True
             break
-        elif result == "void":
-            pending = True
-            break
-        else:
+        elif result in {"void", "pending"}:
             pending = True
             break
 
@@ -401,9 +745,7 @@ def stage_financials(
 
     for stage in range(1, max_stages + 1):
         bet = bets.get(stage, {})
-        selected_odd = bet.get("odd_escolhida")
-        used_odd = float(selected_odd or target_odd)
-
+        used_odd = combined_odd(bet, target_odd)
         stake = running_bank
         potential_return = stake * used_odd
         result = result_key(bet.get("resultado"))
@@ -420,19 +762,23 @@ def stage_financials(
             }
         )
 
-        if not sequence_open:
-            running_bank *= target_odd
-            continue
-
         if result == "won":
             running_bank = potential_return
         elif result == "lost":
             running_bank = 0.0
             sequence_open = False
-        elif result in {"pending", "void"} and bet:
-            sequence_open = False
-        else:
+        elif result == "pending" and bet:
+            # Para projetar as etapas seguintes, assume o retorno potencial.
             running_bank = potential_return
+            sequence_open = False
+        elif result == "void" and bet:
+            # Uma anulada mantém a banca; a mesma etapa deverá ser substituída.
+            running_bank = stake
+            sequence_open = False
+        elif sequence_open:
+            running_bank = potential_return
+        elif running_bank > 0:
+            running_bank *= float(target_odd)
 
     return rows
 
@@ -457,12 +803,13 @@ def render_challenge_table(
         result = item["result"]
         result_label, result_class = labels[result]
         step_class = result_class if result_class in {"won", "lost"} else ""
-
-        game = escape(str(bet.get("jogo") or "Por definir"))
-        selection = escape(str(bet.get("selecao") or "Por definir"))
-        selected_odd = bet.get("odd_escolhida")
-        selected_odd_text = odd_text(selected_odd) if selected_odd not in (None, "") else "—"
         projection_mark = " · projeção" if item["is_projected"] else ""
+        selections_count = len(normalize_selections(bet))
+        count_text = (
+            f"{selections_count} seleção"
+            if selections_count == 1
+            else f"{selections_count} seleções"
+        ) if selections_count else "Por definir"
 
         rows.append(
             f"""
@@ -470,9 +817,8 @@ def render_challenge_table(
   <td><div class="challenge-step {step_class}">{stage}</div></td>
   <td><strong>{euro(item['stake'])}</strong>{projection_mark}</td>
   <td><strong>{euro(item['potential_return'])}</strong>{projection_mark}</td>
-  <td>{game}</td>
-  <td>{selection}</td>
-  <td><strong>{selected_odd_text}</strong></td>
+  <td>{accumulator_html(bet)}<div class="accumulator-leg-meta">{count_text}</div></td>
+  <td><strong>{odd_text(item['used_odd'])}</strong>{projection_mark}</td>
   <td><span class="result-pill {result_class}">{result_label}</span></td>
 </tr>
             """
@@ -487,9 +833,8 @@ def render_challenge_table(
       <th>Etapa</th>
       <th>Valor a apostar</th>
       <th>Retorno</th>
-      <th>Jogo</th>
-      <th>Seleção</th>
-      <th>Odd registada</th>
+      <th>Acumulador</th>
+      <th>Odd combinada</th>
       <th>Resultado</th>
     </tr>
   </thead>
@@ -523,6 +868,215 @@ def all_challenge_summaries(data: dict) -> list[dict]:
     return summaries
 
 
+
+def render_stage_line(summary: dict, max_stages: int) -> None:
+    dots = []
+    for stage in range(1, max_stages + 1):
+        tone = ""
+        if stage <= summary["won"]:
+            tone = "won"
+        elif summary["lost"] and stage == summary["current_stage"]:
+            tone = "lost"
+        elif (
+            summary["status"] not in {"Concluído", "Falhado"}
+            and stage == summary["current_stage"]
+        ):
+            tone = "current"
+
+        dots.append(
+            f'<div class="stage-item">'
+            f'<div class="stage-dot {tone}">{stage}</div>'
+            f'</div>'
+        )
+
+    st.markdown(
+        '<div class="stage-line">' + "".join(dots) + "</div>",
+        unsafe_allow_html=True,
+    )
+
+
+def render_current_accumulator(
+    challenge: dict,
+    target_odd: float,
+    start_bank: float,
+    max_stages: int,
+) -> None:
+    summary = challenge_summary(challenge, target_odd, start_bank, max_stages)
+    financials = stage_financials(challenge, target_odd, start_bank, max_stages)
+
+    if summary["status"] == "Concluído":
+        st.success(
+            f"Desafio concluído: 15 etapas ganhas e banca final de "
+            f"{euro(summary['current_bank'])}."
+        )
+        return
+
+    stage_index = max(0, min(max_stages - 1, summary["current_stage"] - 1))
+    item = financials[stage_index]
+    bet = item["bet"]
+
+    if summary["lost"]:
+        st.error(
+            f"O desafio terminou na etapa {summary['current_stage']}. "
+            "O histórico permanece disponível abaixo."
+        )
+        return
+
+    if not bet:
+        st.info(
+            f"A aposta da etapa {summary['current_stage']} ainda não foi publicada."
+        )
+        return
+
+    selections = normalize_selections(bet)
+    result = result_key(bet.get("resultado"))
+    status_labels = {
+        "pending": "Pendente",
+        "won": "Ganho",
+        "lost": "Perdido",
+        "void": "Anulado",
+    }
+
+    st.markdown(
+        f"""
+<div class="current-bet-card">
+  <div class="current-bet-head">
+    <div>
+      <div class="current-bet-title">Etapa {item['stage']} · {len(selections)} seleções</div>
+      <div class="current-bet-subtitle">Estado: {status_labels[result]}</div>
+    </div>
+    <div class="current-bet-odd">{odd_text(item['used_odd'])}</div>
+  </div>
+  <div class="current-bet-stats">
+    <div class="current-bet-stat">
+      <span>Valor apostado</span>
+      <strong>{euro(item['stake'])}</strong>
+    </div>
+    <div class="current-bet-stat">
+      <span>Retorno possível</span>
+      <strong>{euro(item['potential_return'])}</strong>
+    </div>
+    <div class="current-bet-stat">
+      <span>Odd objetivo</span>
+      <strong>{odd_text(target_odd)}</strong>
+    </div>
+  </div>
+</div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    with st.expander("Ver seleções do acumulador"):
+        st.markdown(accumulator_html(bet), unsafe_allow_html=True)
+
+
+def render_challenge_history(
+    challenge: dict,
+    target_odd: float,
+    start_bank: float,
+    max_stages: int,
+) -> None:
+    actual = [
+        item
+        for item in stage_financials(challenge, target_odd, start_bank, max_stages)
+        if item["bet"]
+    ]
+
+    if not actual:
+        st.caption("Este desafio ainda não tem etapas registadas.")
+        return
+
+    status_labels = {
+        "pending": ("Pendente", ""),
+        "won": ("Ganho", "won"),
+        "lost": ("Perdido", "lost"),
+        "void": ("Anulado", "void"),
+    }
+    rows = []
+
+    for item in actual:
+        label, css_class = status_labels[item["result"]]
+        count = len(normalize_selections(item["bet"]))
+        rows.append(
+            f"""
+<tr>
+  <td><strong>{item['stage']}</strong></td>
+  <td>{count}</td>
+  <td>{odd_text(item['used_odd'])}</td>
+  <td>{euro(item['stake'])}</td>
+  <td>{euro(item['potential_return'])}</td>
+  <td><span class="result-pill {css_class}">{label}</span></td>
+</tr>
+            """
+        )
+
+    st.markdown(
+        f"""
+<div class="challenge-table-wrap">
+<table class="history-table">
+  <thead>
+    <tr>
+      <th>Etapa</th>
+      <th>Seleções</th>
+      <th>Odd</th>
+      <th>Aposta</th>
+      <th>Retorno</th>
+      <th>Estado</th>
+    </tr>
+  </thead>
+  <tbody>{''.join(rows)}</tbody>
+</table>
+</div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    for item in actual:
+        with st.expander(f"Etapa {item['stage']} · ver seleções"):
+            st.markdown(
+                accumulator_html(item["bet"]),
+                unsafe_allow_html=True,
+            )
+
+
+def render_challenge_projection(
+    challenge: dict,
+    target_odd: float,
+    start_bank: float,
+    max_stages: int,
+) -> None:
+    rows = []
+    for item in stage_financials(challenge, target_odd, start_bank, max_stages):
+        rows.append(
+            f"""
+<tr>
+  <td>{item['stage']}</td>
+  <td>{euro(item['stake'])}</td>
+  <td>{odd_text(item['used_odd'])}</td>
+  <td><strong>{euro(item['potential_return'])}</strong></td>
+</tr>
+            """
+        )
+
+    st.markdown(
+        f"""
+<div class="challenge-table-wrap">
+<table class="history-table">
+  <thead>
+    <tr>
+      <th>Etapa</th>
+      <th>Valor</th>
+      <th>Odd</th>
+      <th>Retorno projetado</th>
+    </tr>
+  </thead>
+  <tbody>{''.join(rows)}</tbody>
+</table>
+</div>
+        """,
+        unsafe_allow_html=True,
+    )
+
 def render_challenges_page() -> None:
     data = load_challenges()
     groups = data["grupos"]
@@ -532,11 +1086,11 @@ def render_challenges_page() -> None:
     st.markdown(
         """
 <div class="page-intro">
-  <div class="page-kicker">Desafios acumulados</div>
-  <div class="page-title">Cinco odds. Quatro desafios por odd. Quinze etapas.</div>
+  <div class="page-kicker">Desafios</div>
+  <div class="page-title">Uma etapa de cada vez.</div>
   <div class="page-copy">
-    Cada desafio começa com 1 € e reinveste todo o retorno na etapa seguinte.
-    O objetivo é completar 15 resultados consecutivos dentro da mesma odd.
+    Escolhe a odd, acompanha a etapa atual e abre o histórico apenas quando
+    precisares de mais detalhe.
   </div>
 </div>
         """,
@@ -551,16 +1105,16 @@ def render_challenges_page() -> None:
 
     stat_cards(
         [
-            ("Desafios ativos", str(active), "sequências em curso"),
-            ("Concluídos", str(completed), "15 etapas ganhas"),
-            ("Falhados", str(failed), "sequências encerradas"),
-            ("Banca atual total", euro(current_total), "soma dos 20 desafios"),
+            ("Ativos", str(active), "em curso"),
+            ("Concluídos", str(completed), "15 etapas"),
+            ("Falhados", str(failed), "encerrados"),
+            ("Banca atual", euro(current_total), "total"),
         ]
     )
 
-    group_labels = [f"Odd {odd_text(group.get('odd', 0))}" for group in groups]
+    group_labels = [f"{odd_text(group.get('odd', 0))}" for group in groups]
     selected_label = st.radio(
-        "Escolher grupo de desafios",
+        "Odd do desafio",
         group_labels,
         horizontal=True,
     )
@@ -570,8 +1124,8 @@ def render_challenges_page() -> None:
     final_target = start_bank * (target_odd ** max_stages)
 
     section_title(
-        f"Desafios de odd {odd_text(target_odd)}",
-        f"Cada desafio começa em {euro(start_bank)} e poderá atingir {euro(final_target)} após {max_stages} ganhos.",
+        f"Odd {odd_text(target_odd)}",
+        f"Quatro desafios independentes · objetivo teórico {euro(final_target)}",
     )
 
     cards = []
@@ -580,13 +1134,11 @@ def render_challenges_page() -> None:
         cards.append(
             f"""
 <div class="challenge-card {summary['card_class']}">
-  <div class="challenge-kicker">Odd fixa {odd_text(target_odd)}</div>
   <div class="challenge-name">{escape(str(challenge.get('nome', 'Desafio')))}</div>
   <div class="challenge-target">{euro(summary['current_bank'])}</div>
   <div class="challenge-meta">Banca atual</div>
   <div class="challenge-progress"><span style="width:{summary['progress']:.1f}%"></span></div>
-  <div class="challenge-meta">{summary['won']} de {max_stages} etapas ganhas</div>
-  <div class="challenge-meta">Próxima etapa: {summary['current_stage']}</div>
+  <div class="challenge-meta">Etapa {summary['current_stage']} de {max_stages}</div>
   <div class="challenge-status {summary['status_class']}">{summary['status']}</div>
 </div>
             """
@@ -598,49 +1150,72 @@ def render_challenges_page() -> None:
     )
 
     selected_name = st.selectbox(
-        "Ver detalhes do desafio",
+        "Abrir desafio",
         [str(challenge.get("nome", "Desafio")) for challenge in challenges],
-        key=f"challenge_{target_odd}",
+        key=f"challenge_clean_{target_odd}",
     )
     selected_challenge = next(
         challenge
         for challenge in challenges
         if str(challenge.get("nome", "Desafio")) == selected_name
     )
-    summary = challenge_summary(selected_challenge, target_odd, start_bank, max_stages)
+    summary = challenge_summary(
+        selected_challenge,
+        target_odd,
+        start_bank,
+        max_stages,
+    )
 
     section_title(
         f"{selected_name} · odd {odd_text(target_odd)}",
-        (
-            f"{summary['status']} · {summary['won']} de {max_stages} etapas ganhas · "
-            f"Banca atual: {euro(summary['current_bank'])}"
-        ),
+        "Resumo do progresso",
+    )
+    stat_cards(
+        [
+            ("Estado", summary["status"], "situação atual"),
+            ("Etapa", f"{summary['current_stage']}/{max_stages}", "progresso"),
+            ("Banca atual", euro(summary["current_bank"]), "acumulado"),
+            ("Objetivo", euro(summary["final_target"]), "15 ganhos"),
+        ]
     )
 
-    render_challenge_table(selected_challenge, target_odd, start_bank, max_stages)
+    render_stage_line(summary, max_stages)
 
-    st.info(
-        "Os jogos e resultados são geridos no painel privado «Administração». "
-        "O público apenas consegue consultar os desafios."
+    section_title("Aposta atual", "O acumulador da etapa em curso")
+    render_current_accumulator(
+        selected_challenge,
+        target_odd,
+        start_bank,
+        max_stages,
     )
 
-    with st.expander("Como funciona o acumulado?"):
-        st.write(
-            f"Cada desafio começa com {euro(start_bank)}. Num desafio de odd "
-            f"{odd_text(target_odd)}, o retorno da primeira etapa é calculado pela "
-            "odd realmente registada. Todo o retorno passa para a etapa seguinte."
+    with st.expander("Histórico das etapas"):
+        render_challenge_history(
+            selected_challenge,
+            target_odd,
+            start_bank,
+            max_stages,
         )
+
+    with st.expander("Projeção completa até à etapa 15"):
+        render_challenge_projection(
+            selected_challenge,
+            target_odd,
+            start_bank,
+            max_stages,
+        )
+
+    with st.expander("Como funciona o desafio?"):
         st.write(
-            f"Com 15 ganhos consecutivos exatamente na odd {odd_text(target_odd)}, "
-            f"o valor teórico final é {euro(final_target)}."
+            f"Cada desafio começa com {euro(start_bank)}. Todo o retorno da etapa "
+            "ganha é reinvestido na etapa seguinte. Uma aposta perdida encerra "
+            "apenas esse desafio."
         )
 
     note(
-        "Os valores apresentados são projeções matemáticas e não garantem ganhos. "
-        "Uma aposta perdida encerra a sequência desse desafio."
+        "Os valores são projeções matemáticas. As odds e os resultados não são garantidos."
     )
     footer()
-
 
 def admin_login() -> bool:
     configured_password = secret_value("ADMIN_PASSWORD")
@@ -812,7 +1387,7 @@ def render_admin_page() -> None:
   <div class="page-kicker">Área reservada</div>
   <div class="page-title">Administração dos desafios</div>
   <div class="page-copy">
-    Adiciona jogos, atualiza resultados, controla as etapas e publica as
+    Cria acumuladores com várias seleções, atualiza resultados e publica as
     alterações sem expor ferramentas de edição ao público.
   </div>
 </div>
@@ -879,84 +1454,128 @@ def render_admin_page() -> None:
         index=max(0, min(max_stages - 1, default_stage - 1)),
     )
     existing = bets.get(stage, {})
-
-    date_default = date.today()
-    if existing.get("data"):
-        try:
-            date_default = date.fromisoformat(str(existing["data"]))
-        except ValueError:
-            pass
-
-    time_default = time(15, 0)
-    if existing.get("hora"):
-        try:
-            time_default = time.fromisoformat(str(existing["hora"]))
-        except ValueError:
-            pass
-
     current_result = str(existing.get("resultado") or "pendente").lower()
     if current_result not in RESULT_OPTIONS:
         current_result = "pendente"
 
-    st.markdown("### Registar ou corrigir aposta")
-    with st.form("challenge_bet_form"):
-        col1, col2 = st.columns(2)
-        with col1:
-            competition = st.text_input(
-                "Competição",
-                value=str(existing.get("competicao") or ""),
-                placeholder="Ex.: Liga Portugal",
-            )
-            game = st.text_input(
-                "Jogo",
-                value=str(existing.get("jogo") or ""),
-                placeholder="Ex.: Benfica x Porto",
-            )
-            selection = st.text_input(
-                "Seleção",
-                value=str(existing.get("selecao") or ""),
-                placeholder="Ex.: Mais de 1,5 golos",
-            )
-            bookmaker = st.text_input(
-                "Casa de apostas",
-                value=str(existing.get("casa_apostas") or ""),
-                placeholder="Opcional",
-            )
+    existing_combined = combined_odd(existing, odd) if existing else odd
+    existing_count = len(normalize_selections(existing))
 
-        with col2:
-            game_date = st.date_input("Data do jogo", value=date_default)
-            game_time = st.time_input("Hora do jogo", value=time_default)
-            selected_odd = st.number_input(
-                "Odd escolhida",
-                min_value=1.01,
-                max_value=100.0,
-                value=float(existing.get("odd_escolhida") or odd),
-                step=0.01,
-                format="%.2f",
-            )
-            result = st.selectbox(
-                "Resultado",
-                RESULT_OPTIONS,
-                index=RESULT_OPTIONS.index(current_result),
-            )
+    st.markdown("### Registar ou corrigir acumulador")
+    st.caption(
+        "Cada linha representa uma seleção do mesmo acumulador. "
+        "Usa o botão «+» no fim da tabela para juntar mais jogos ou mercados."
+    )
+
+    if existing:
+        stat_cards(
+            [
+                (
+                    "Seleções atuais",
+                    str(existing_count),
+                    "dentro desta etapa",
+                ),
+                (
+                    "Odd combinada atual",
+                    odd_text(existing_combined),
+                    f"objetivo do grupo: {odd_text(odd)}",
+                ),
+                (
+                    "Valor da etapa",
+                    euro(stage_financials(challenge, odd, start_bank, max_stages)[stage - 1]["stake"]),
+                    "banca a reinvestir",
+                ),
+                (
+                    "Retorno potencial",
+                    euro(
+                        stage_financials(
+                            challenge,
+                            odd,
+                            start_bank,
+                            max_stages,
+                        )[stage - 1]["stake"] * existing_combined
+                    ),
+                    "pela odd combinada",
+                ),
+            ]
+        )
+
+    editor_rows = editor_rows_for_bet(existing, odd)
+    editor_frame = pd.DataFrame(editor_rows)
+
+    with st.form(f"challenge_accumulator_form_{odd}_{challenge_name}_{stage}"):
+        bookmaker = st.text_input(
+            "Casa de apostas",
+            value=str(existing.get("casa_apostas") or ""),
+            placeholder="Opcional",
+        )
+
+        edited_selections = st.data_editor(
+            editor_frame,
+            num_rows="dynamic",
+            hide_index=True,
+            use_container_width=True,
+            column_config={
+                "Competição": st.column_config.TextColumn(
+                    "Competição",
+                    help="Ex.: Liga Portugal",
+                ),
+                "Jogo": st.column_config.TextColumn(
+                    "Jogo",
+                    help="Ex.: Benfica x Porto",
+                ),
+                "Seleção / mercado": st.column_config.TextColumn(
+                    "Seleção / mercado",
+                    help="Ex.: Mais de 1,5 golos",
+                ),
+                "Data": st.column_config.TextColumn(
+                    "Data",
+                    help="Formato recomendado: AAAA-MM-DD",
+                ),
+                "Hora": st.column_config.TextColumn(
+                    "Hora",
+                    help="Formato recomendado: HH:MM",
+                ),
+                "Odd": st.column_config.NumberColumn(
+                    "Odd",
+                    min_value=1.01,
+                    max_value=100.0,
+                    step=0.01,
+                    format="%.2f",
+                ),
+            },
+            key=f"accumulator_editor_{odd}_{challenge_name}_{stage}",
+        )
+
+        result = st.selectbox(
+            "Resultado do acumulador completo",
+            RESULT_OPTIONS,
+            index=RESULT_OPTIONS.index(current_result),
+            help=(
+                "Marca «ganho» apenas quando todas as seleções vencerem. "
+                "Se uma seleção perder, o acumulador é «perdido»."
+            ),
+        )
 
         note_text = st.text_area(
             "Nota",
             value=str(existing.get("nota") or ""),
-            placeholder="Informação opcional sobre a escolha.",
+            placeholder="Informação opcional sobre o acumulador.",
         )
 
         save = st.form_submit_button(
-            "Guardar alteração no painel",
+            "Guardar acumulador no painel",
             type="primary",
             use_container_width=True,
         )
 
     if save:
         is_existing = stage in bets
+        selections, selection_errors = selections_from_editor(edited_selections)
 
-        if not game.strip() or not selection.strip():
-            st.error("Preenche o jogo e a seleção.")
+        if selection_errors:
+            for error in selection_errors:
+                st.error(error)
         elif summary["lost"] and not is_existing:
             st.error(
                 "Este desafio está falhado. Reinicia o desafio antes de adicionar uma nova etapa."
@@ -969,15 +1588,12 @@ def render_admin_page() -> None:
         elif stage > 1 and not previous_stages_are_won(challenge, stage):
             st.error("Todas as etapas anteriores têm de estar marcadas como ganhas.")
         else:
+            calculated_odd = float(prod(item["odd"] for item in selections))
             new_bet = {
                 "etapa": int(stage),
-                "competicao": competition.strip(),
-                "jogo": game.strip(),
-                "selecao": selection.strip(),
                 "casa_apostas": bookmaker.strip(),
-                "data": game_date.isoformat(),
-                "hora": game_time.strftime("%H:%M"),
-                "odd_escolhida": round(float(selected_odd), 2),
+                "selecoes": selections,
+                "odd_combinada": round(calculated_odd, 4),
                 "resultado": result,
                 "nota": note_text.strip(),
                 "atualizado_em": datetime.now().isoformat(timespec="seconds"),
@@ -985,9 +1601,19 @@ def render_admin_page() -> None:
             upsert_bet(challenge, new_bet)
             data["ultima_atualizacao"] = datetime.now().strftime("%d/%m/%Y %H:%M")
             st.session_state["admin_challenges_data"] = data
-            st.success(
-                "Alteração guardada nesta sessão. Publica no GitHub para atualizar o site."
-            )
+
+            difference = calculated_odd - float(odd)
+            if calculated_odd < float(odd):
+                st.warning(
+                    f"Acumulador guardado com odd {odd_text(calculated_odd)}, "
+                    f"abaixo do objetivo {odd_text(odd)} por {abs(difference):.2f}."
+                )
+            else:
+                st.success(
+                    f"Acumulador guardado com {len(selections)} seleções e "
+                    f"odd combinada {odd_text(calculated_odd)}. "
+                    "Publica no GitHub para atualizar o site."
+                )
             st.rerun()
 
     st.divider()
@@ -1101,21 +1727,34 @@ GITHUB_FILE_PATH = "desafios.json"
     render_challenge_table(challenge, odd, start_bank, max_stages)
 
 
+with st.sidebar:
+    st.markdown("#### Área privada")
+    st.caption("Acesso reservado ao administrador.")
+
+    if st.session_state.get("show_admin"):
+        if st.button("← Voltar ao site", use_container_width=True):
+            st.session_state["show_admin"] = False
+            st.rerun()
+    else:
+        if st.button("🔐 Administração", use_container_width=True):
+            st.session_state["show_admin"] = True
+            st.rerun()
+
+if st.session_state.get("show_admin"):
+    render_admin_page()
+    st.stop()
+
 st.markdown('<div class="challenge-nav">', unsafe_allow_html=True)
 active_area = st.radio(
-    "Área",
-    ["⚽ Prognósticos", "🎯 Desafios Sequenciais", "🔐 Administração"],
+    "Área pública",
+    ["Prognósticos", "Desafios"],
     horizontal=True,
     label_visibility="collapsed",
 )
 st.markdown("</div>", unsafe_allow_html=True)
 
-if active_area == "🎯 Desafios Sequenciais":
+if active_area == "Desafios":
     render_challenges_page()
-    st.stop()
-
-if active_area == "🔐 Administração":
-    render_admin_page()
     st.stop()
 
 page_intro()
@@ -1216,7 +1855,6 @@ if not leagues:
     st.stop()
 
 league_labels = [f"{row['name']} · {row['country']}" for row in leagues]
-st.caption(f"{len(leagues)} competições disponíveis · {sum(int(row['game_count']) for row in leagues)} jogos carregados")
 default_league_index = next(
     (index for index, row in enumerate(leagues) if "Portugal" in str(row["name"]) or "Portugal" in str(row["country"])),
     0,
@@ -1325,192 +1963,222 @@ confidence_badge(score)
 if game["assigned_referee"]:
     st.caption(f"Árbitro associado: {game['assigned_referee']}")
 
-# Todos os mercados são mostrados numa única página.
-# Isto evita que um visitante não repare nos separadores do Streamlit.
+# Leitura progressiva: primeiro o essencial, depois os detalhes.
 
-section_title("1. Resultado final", "Probabilidades 1X2 e odds justas do modelo")
 outcomes = [
     (game["home"], prediction["home_win"]),
     ("Empate", prediction["draw"]),
     (game["away"], prediction["away_win"]),
 ]
-outcome_cards(outcomes)
-
-section_title("2. Dupla possibilidade", "Combinações dos três desfechos principais")
-probability_list(
-    [
-        (f"{game['home']} ou empate", prediction["home_win"] + prediction["draw"], ""),
-        (f"Empate ou {game['away']}", prediction["draw"] + prediction["away_win"], "blue"),
-        ("Sem empate", prediction["home_win"] + prediction["away_win"], "amber"),
-    ]
-)
-
-section_title("3. Resultados exatos", "Os oito cenários individuais mais prováveis")
-score_cards(
-    [
-        (f"{home}–{away}", probability)
-        for (home, away), probability in prediction["exact_scores"][:8]
-    ]
-)
-
-section_title("4. Leitura rápida", "Indicadores centrais do confronto")
 favorite, favorite_probability = max(outcomes, key=lambda item: item[1])
 top_score, top_score_probability = prediction["exact_scores"][0]
+matrix = prediction["score_matrix"]
+expected_total = prediction["expected_home_goals"] + prediction["expected_away_goals"]
+home_scores = matrix_probability(matrix, lambda home, away: home >= 1)
+away_scores = matrix_probability(matrix, lambda home, away: away >= 1)
+
+section_title("Resumo", "Os quatro indicadores essenciais")
 stat_cards(
     [
-        ("Desfecho favorito", favorite, f"{favorite_probability*100:.1f}%"),
+        ("Favorito", favorite, f"{favorite_probability*100:.1f}%"),
         (
-            "Resultado líder",
+            "Resultado provável",
             f"{top_score[0]}–{top_score[1]}",
             f"{top_score_probability*100:.1f}%",
         ),
-        (
-            "Golos esperados",
-            f"{prediction['expected_home_goals'] + prediction['expected_away_goals']:.2f}",
-            "total do jogo",
-        ),
-        ("Amostra", str(prediction["data_matches"]), "jogos utilizados"),
+        ("Golos esperados", f"{expected_total:.2f}", "total"),
+        ("Confiança", f"{score}/100", f"{prediction['data_matches']} jogos"),
     ]
 )
 
-st.divider()
+section_title("Mercados principais", "A leitura mais rápida do encontro")
 
-matrix = prediction["score_matrix"]
-expected_total = prediction["expected_home_goals"] + prediction["expected_away_goals"]
+st.markdown("##### Resultado final")
+outcome_cards(outcomes)
 
-section_title("5. Golos esperados", "Produção ofensiva estimada de cada equipa")
-stat_cards(
-    [
-        (game["home"], f"{prediction['expected_home_goals']:.2f}", "golos esperados"),
-        (game["away"], f"{prediction['expected_away_goals']:.2f}", "golos esperados"),
-        ("Total esperado", f"{expected_total:.2f}", "golos"),
-        ("Ambas marcam", f"{prediction['btts_yes']*100:.1f}%", "probabilidade"),
-    ]
-)
-
-section_title("6. Mais / menos golos", "Linhas principais do total da partida")
-goal_rows = []
-for line in [0.5, 1.5, 2.5, 3.5, 4.5]:
-    over = prediction["over_25"] if line == 2.5 else total_goals_over(matrix, line)
-    goal_rows.extend(
-        [
-            (f"Mais de {str(line).replace('.', ',')}", over, ""),
-            (f"Menos de {str(line).replace('.', ',')}", 1 - over, "blue"),
-        ]
-    )
-probability_list(goal_rows)
-
-section_title("7. Ambas marcam e equipas a marcar", "Probabilidades derivadas dos resultados possíveis")
-home_scores = matrix_probability(matrix, lambda home, away: home >= 1)
-away_scores = matrix_probability(matrix, lambda home, away: away >= 1)
-probability_list(
-    [
-        ("Ambas marcam — Sim", prediction["btts_yes"], ""),
-        ("Ambas marcam — Não", prediction["btts_no"], "blue"),
-        (f"{game['home']} marca", home_scores, ""),
-        (f"{game['away']} marca", away_scores, "blue"),
-        (
-            f"{game['home']} sem sofrer",
-            matrix_probability(matrix, lambda home, away: away == 0),
-            "amber",
-        ),
-        (
-            f"{game['away']} sem sofrer",
-            matrix_probability(matrix, lambda home, away: home == 0),
-            "amber",
-        ),
-    ]
-)
-
-section_title("8. Golo nos primeiros 5 minutos")
-if prediction["first5"] is None:
-    note("Ainda não existem dados suficientes para calcular este mercado com confiança.")
-else:
+main_left, main_right = st.columns(2)
+with main_left:
+    st.markdown("##### Dupla possibilidade")
     probability_list(
         [
-            ("Sim", prediction["first5"], ""),
-            ("Não", 1 - prediction["first5"], "blue"),
+            (
+                f"{game['home']} ou empate",
+                prediction["home_win"] + prediction["draw"],
+                "",
+            ),
+            (
+                f"Empate ou {game['away']}",
+                prediction["draw"] + prediction["away_win"],
+                "blue",
+            ),
+            (
+                "Sem empate",
+                prediction["home_win"] + prediction["away_win"],
+                "amber",
+            ),
         ]
     )
 
-st.divider()
-
-section_title("9. Resultado ao intervalo", "Probabilidades 1X2 na primeira parte")
-outcome_cards(
-    [
-        (game["home"], prediction["ht_home"]),
-        ("Empate", prediction["ht_draw"]),
-        (game["away"], prediction["ht_away"]),
-    ]
-)
-
-section_title("10. Resultados exatos ao intervalo", "Cenários mais prováveis")
-score_cards(
-    [
-        (f"{home}–{away}", probability)
-        for (home, away), probability in prediction["ht_exact_scores"]
-    ]
-)
-
-st.divider()
-
-section_title("11. Cantos", "Estimativas e linhas de mais/menos")
-render_count_market(
-    prediction,
-    "corners",
-    "Cantos",
-    [8.5, 9.5, 10.5],
-    game["home"],
-    game["away"],
-)
-
-st.divider()
-
-section_title("12. Cartões amarelos", "Estimativas e linhas de mais/menos")
-render_count_market(
-    prediction,
-    "yellows",
-    "Cartões amarelos",
-    [3.5, 4.5, 5.5],
-    game["home"],
-    game["away"],
-)
-
-st.divider()
-
-section_title("13. Faltas", "Estimativas e linhas de mais/menos")
-render_count_market(
-    prediction,
-    "fouls",
-    "Faltas",
-    [21.5, 23.5, 25.5],
-    game["home"],
-    game["away"],
-)
-
-st.divider()
-
-section_title("14. Foras de jogo", "Estimativas e linhas de mais/menos")
-render_count_market(
-    prediction,
-    "offsides",
-    "Foras de jogo",
-    [2.5, 3.5, 4.5],
-    game["home"],
-    game["away"],
-)
-
-with st.expander("Como são calculadas estas probabilidades?"):
-    st.write(
-        "O modelo utiliza histórico recente, força ofensiva e defensiva, adversário, contexto casa/fora, "
-        "equipas promovidas, mercado de transferências e correção Dixon–Coles. O peso das transferências "
-        "diminui à medida que surgem jogos reais da nova época."
+with main_right:
+    st.markdown("##### Golos principais")
+    probability_list(
+        [
+            ("Mais de 2,5 golos", prediction["over_25"], ""),
+            ("Menos de 2,5 golos", 1 - prediction["over_25"], "blue"),
+            ("Ambas marcam — Sim", prediction["btts_yes"], ""),
+            ("Ambas marcam — Não", prediction["btts_no"], "blue"),
+        ]
     )
-    st.write(f"**{game['home']}:** {prediction['home_source']} ({prediction['home_sample']} jogos)")
-    st.write(f"**{game['away']}:** {prediction['away_source']} ({prediction['away_sample']} jogos)")
+
+section_title("Mais mercados", "Abre apenas a informação que pretendes consultar")
+
+with st.expander("Golos e resultados exatos"):
+    section_title("Resultados exatos", "Os seis cenários mais prováveis")
+    score_cards(
+        [
+            (f"{home}–{away}", probability)
+            for (home, away), probability in prediction["exact_scores"][:6]
+        ]
+    )
+
+    section_title("Golos esperados", "Produção estimada por equipa")
+    stat_cards(
+        [
+            (
+                game["home"],
+                f"{prediction['expected_home_goals']:.2f}",
+                "golos esperados",
+            ),
+            (
+                game["away"],
+                f"{prediction['expected_away_goals']:.2f}",
+                "golos esperados",
+            ),
+            ("Total", f"{expected_total:.2f}", "golos"),
+            ("Ambas marcam", f"{prediction['btts_yes']*100:.1f}%", "probabilidade"),
+        ]
+    )
+
+    section_title("Linhas de golos", "Mais e menos")
+    goal_rows = []
+    for line in [0.5, 1.5, 2.5, 3.5, 4.5]:
+        over = prediction["over_25"] if line == 2.5 else total_goals_over(matrix, line)
+        goal_rows.extend(
+            [
+                (f"Mais de {str(line).replace('.', ',')}", over, ""),
+                (f"Menos de {str(line).replace('.', ',')}", 1 - over, "blue"),
+            ]
+        )
+    probability_list(goal_rows)
+
+    section_title("Equipas a marcar", "Golos e balizas invioladas")
+    probability_list(
+        [
+            (f"{game['home']} marca", home_scores, ""),
+            (f"{game['away']} marca", away_scores, "blue"),
+            (
+                f"{game['home']} sem sofrer",
+                matrix_probability(matrix, lambda home, away: away == 0),
+                "amber",
+            ),
+            (
+                f"{game['away']} sem sofrer",
+                matrix_probability(matrix, lambda home, away: home == 0),
+                "amber",
+            ),
+        ]
+    )
+
+    section_title("Golo nos primeiros 5 minutos")
+    if prediction["first5"] is None:
+        st.caption("Ainda não existem dados suficientes para este mercado.")
+    else:
+        probability_list(
+            [
+                ("Sim", prediction["first5"], ""),
+                ("Não", 1 - prediction["first5"], "blue"),
+            ]
+        )
+
+with st.expander("Primeira parte"):
+    section_title("Resultado ao intervalo", "Probabilidades 1X2")
+    outcome_cards(
+        [
+            (game["home"], prediction["ht_home"]),
+            ("Empate", prediction["ht_draw"]),
+            (game["away"], prediction["ht_away"]),
+        ]
+    )
+    section_title("Resultados exatos ao intervalo", "Cenários mais prováveis")
+    score_cards(
+        [
+            (f"{home}–{away}", probability)
+            for (home, away), probability in prediction["ht_exact_scores"]
+        ]
+    )
+
+with st.expander("Cantos"):
+    render_count_market(
+        prediction,
+        "corners",
+        "Cantos",
+        [8.5, 9.5, 10.5],
+        game["home"],
+        game["away"],
+    )
+
+with st.expander("Cartões e faltas"):
+    section_title("Cartões amarelos")
+    render_count_market(
+        prediction,
+        "yellows",
+        "Cartões amarelos",
+        [3.5, 4.5, 5.5],
+        game["home"],
+        game["away"],
+    )
+    st.divider()
+    section_title("Faltas")
+    render_count_market(
+        prediction,
+        "fouls",
+        "Faltas",
+        [21.5, 23.5, 25.5],
+        game["home"],
+        game["away"],
+    )
+
+with st.expander("Foras de jogo"):
+    render_count_market(
+        prediction,
+        "offsides",
+        "Foras de jogo",
+        [2.5, 3.5, 4.5],
+        game["home"],
+        game["away"],
+    )
+
+with st.expander("Metodologia e confiança"):
+    confidence_badge(score)
+    st.write(
+        "O modelo utiliza histórico recente, força ofensiva e defensiva, "
+        "adversário, contexto casa/fora, equipas promovidas, mercado de "
+        "transferências e correção Dixon–Coles."
+    )
+    st.write(
+        f"**{game['home']}:** {prediction['home_source']} "
+        f"({prediction['home_sample']} jogos)"
+    )
+    st.write(
+        f"**{game['away']}:** {prediction['away_source']} "
+        f"({prediction['away_sample']} jogos)"
+    )
     st.write(f"**Modelo:** {prediction['model_version']}")
     if prediction["home_promoted"] or prediction["away_promoted"]:
-        st.warning("O encontro inclui uma equipa promovida; foi aplicado um perfil ajustado e conservador.")
+        st.warning(
+            "O encontro inclui uma equipa promovida; foi aplicado um perfil "
+            "ajustado e conservador."
+        )
 
 note(
     "As probabilidades são estimativas estatísticas. Lesões, suspensões, onze inicial e alterações táticas de última hora devem ser confirmados antes da interpretação."
