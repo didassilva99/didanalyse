@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from html import escape
+import base64
+from pathlib import Path
 from typing import Iterable, Sequence
 
 import streamlit as st
@@ -436,6 +438,37 @@ div[role="radiogroup"] label {
   }
 }
 
+.brand-logo-shell {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 86px;
+  margin: -.3rem 0 .55rem;
+  overflow: hidden;
+}
+.brand-logo-image {
+  display: block;
+  width: min(440px, 82vw);
+  height: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 12px 30px rgba(0, 0, 0, .42));
+}
+.brand-fallback {
+  color: var(--text);
+  font-size: 1.45rem;
+  font-weight: 900;
+  margin: .5rem 0 1rem;
+}
+@media (max-width: 600px) {
+  .brand-logo-shell {
+    min-height: 68px;
+    margin-top: -.15rem;
+  }
+  .brand-logo-image {
+    width: min(360px, 94vw);
+  }
+}
+
 /* Controlos nativos do Streamlit */
 .stApp, .stApp p, .stApp label, .stApp span {
   color: var(--text);
@@ -598,45 +631,35 @@ hr {
 
 
 def brand_header() -> None:
-    st.markdown(
-        """
-<div class="brand-bar">
-  <div class="brand-left">
-    <div class="brand-mark">DA</div>
-    <div>
-      <div class="brand-name">DidAnalyze</div>
-      <div class="brand-tagline">Football intelligence · probabilities & challenges</div>
-    </div>
-  </div>
-</div>
-        """,
-        unsafe_allow_html=True,
-    )
+    logo_path = Path(__file__).resolve().parent / "assets" / "didanalyze_logo.png"
 
+    if logo_path.is_file():
+        encoded = base64.b64encode(logo_path.read_bytes()).decode("ascii")
+        st.markdown(
+            f"""
+<div class="brand-logo-shell">
+  <img
+    class="brand-logo-image"
+    src="data:image/png;base64,{encoded}"
+    alt="DidAnalyze"
+  />
+</div>
+            """,
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(
+            '<div class="brand-fallback">DidAnalyze</div>',
+            unsafe_allow_html=True,
+        )
 
 def page_intro() -> None:
-    st.markdown(
-        """
-<div class="page-intro">
-  <div class="page-kicker">Análise pré-jogo</div>
-  <div class="page-title">Decisões mais claras. Dados mais fortes.</div>
-  <div class="page-copy">
-    Escolhe um encontro, consulta primeiro os mercados principais e abre apenas
-    os detalhes de que precisas.
-  </div>
-</div>
-        """,
-        unsafe_allow_html=True,
-    )
-
+    """Sem bloco promocional; mantém apenas informação funcional."""
+    return
 
 def picker_header() -> None:
     st.markdown(
-        """
-<div class="picker-card">
-  <div class="picker-title">Escolher jogo</div>
-</div>
-        """,
+        '<div class="picker-card"><div class="picker-title">Selecionar jogo</div></div>',
         unsafe_allow_html=True,
     )
 
@@ -658,8 +681,13 @@ def match_hero(home: str, away: str, meta: str) -> None:
 
 
 def section_title(title: str, subtitle: str = "") -> None:
+    subtitle_html = (
+        f"<span>{escape(subtitle)}</span>"
+        if subtitle.strip()
+        else ""
+    )
     st.markdown(
-        f'<div class="section-title-simple"><strong>{escape(title)}</strong><span>{escape(subtitle)}</span></div>',
+        f'<div class="section-title-simple"><strong>{escape(title)}</strong>{subtitle_html}</div>',
         unsafe_allow_html=True,
     )
 
@@ -752,6 +780,6 @@ def note(text: str) -> None:
 
 def footer() -> None:
     st.markdown(
-        '<div class="site-footer-simple">DidAnalyze · Modelo estatístico · v1.7 · As probabilidades não garantem resultados.</div>',
+        '<div class="site-footer-simple">DidAnalyze · v1.8 · Probabilidades estatísticas, sem garantia de resultado.</div>',
         unsafe_allow_html=True,
     )

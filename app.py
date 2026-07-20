@@ -61,7 +61,7 @@ def transfer_score(connection, team_id: int) -> dict:
 
 
 st.set_page_config(
-    page_title="DidAnalyze — Probabilidades de Futebol",
+    page_title="DidAnalyze",
     page_icon="⚽",
     layout="wide",
     initial_sidebar_state="collapsed",
@@ -1111,18 +1111,9 @@ def render_challenges_page() -> None:
     start_bank = float(data.get("banca_inicial", 1.0))
     max_stages = int(data.get("max_etapas", 15))
 
-    st.markdown(
-        """
-<div class="page-intro">
-  <div class="page-kicker">Desafios</div>
-  <div class="page-title">Uma etapa de cada vez.</div>
-  <div class="page-copy">
-    Escolhe a odd, acompanha a etapa atual e abre o histórico apenas quando
-    precisares de mais detalhe.
-  </div>
-</div>
-        """,
-        unsafe_allow_html=True,
+    section_title(
+        "Desafios",
+        f"5 odds · 4 desafios por odd · {max_stages} etapas · banca inicial {euro(start_bank)}",
     )
 
     summaries = all_challenge_summaries(data)
@@ -1194,10 +1185,7 @@ def render_challenges_page() -> None:
         max_stages,
     )
 
-    section_title(
-        f"{selected_name} · odd {odd_text(target_odd)}",
-        "Resumo do progresso",
-    )
+    section_title(f"{selected_name} · odd {odd_text(target_odd)}")
     stat_cards(
         [
             ("Estado", summary["status"], "situação atual"),
@@ -1209,7 +1197,7 @@ def render_challenges_page() -> None:
 
     render_stage_line(summary, max_stages)
 
-    section_title("Aposta atual", "O acumulador da etapa em curso")
+    section_title("Aposta atual")
     render_current_accumulator(
         selected_challenge,
         target_odd,
@@ -1233,16 +1221,17 @@ def render_challenges_page() -> None:
             max_stages,
         )
 
-    with st.expander("Como funciona o desafio?"):
-        st.write(
-            f"Cada desafio começa com {euro(start_bank)}. Todo o retorno da etapa "
-            "ganha é reinvestido na etapa seguinte. Uma aposta perdida encerra "
-            "apenas esse desafio."
+    with st.expander("Regras"):
+        st.markdown(
+            f"""
+- **Banca inicial:** {euro(start_bank)}
+- **Etapas:** {max_stages}
+- **Reinvestimento:** retorno total da etapa ganha
+- **Perda:** encerra apenas o desafio selecionado
+            """
         )
 
-    note(
-        "Os valores são projeções matemáticas. As odds e os resultados não são garantidos."
-    )
+    note("Projeções matemáticas; não garantem resultados.")
     footer()
 
 def admin_login() -> bool:
@@ -1409,19 +1398,7 @@ def admin_dashboard(data: dict) -> None:
 
 
 def render_admin_page() -> None:
-    st.markdown(
-        """
-<div class="page-intro">
-  <div class="page-kicker">Área reservada</div>
-  <div class="page-title">Administração dos desafios</div>
-  <div class="page-copy">
-    Cria acumuladores com várias seleções, atualiza resultados e publica as
-    alterações sem expor ferramentas de edição ao público.
-  </div>
-</div>
-        """,
-        unsafe_allow_html=True,
-    )
+    section_title("Administração dos desafios")
 
     if not admin_login():
         return
@@ -1748,17 +1725,11 @@ GITHUB_FILE_PATH = "desafios.json"
         )
 
     st.divider()
-    section_title(
-        "Pré-visualização do desafio",
-        "Esta visualização usa as alterações guardadas na sessão, mesmo antes da publicação.",
-    )
+    section_title("Pré-visualização")
     render_challenge_table(challenge, odd, start_bank, max_stages)
 
 
 with st.sidebar:
-    st.markdown("#### Área privada")
-    st.caption("Acesso reservado ao administrador.")
-
     if st.session_state.get("show_admin"):
         if st.button("← Voltar ao site", use_container_width=True):
             st.session_state["show_admin"] = False
@@ -1991,7 +1962,6 @@ confidence_badge(score)
 if game["assigned_referee"]:
     st.caption(f"Árbitro associado: {game['assigned_referee']}")
 
-# Leitura progressiva: primeiro o essencial, depois os detalhes.
 
 outcomes = [
     (game["home"], prediction["home_win"]),
@@ -2005,7 +1975,7 @@ expected_total = prediction["expected_home_goals"] + prediction["expected_away_g
 home_scores = matrix_probability(matrix, lambda home, away: home >= 1)
 away_scores = matrix_probability(matrix, lambda home, away: away >= 1)
 
-section_title("Resumo", "Os quatro indicadores essenciais")
+section_title("Resumo")
 stat_cards(
     [
         ("Favorito", favorite, f"{favorite_probability*100:.1f}%"),
@@ -2019,7 +1989,7 @@ stat_cards(
     ]
 )
 
-section_title("Mercados principais", "A leitura mais rápida do encontro")
+section_title("Mercados principais")
 
 st.markdown("##### Resultado final")
 outcome_cards(outcomes)
@@ -2058,10 +2028,10 @@ with main_right:
         ]
     )
 
-section_title("Mais mercados", "Abre apenas a informação que pretendes consultar")
+section_title("Mais mercados")
 
 with st.expander("Golos e resultados exatos"):
-    section_title("Resultados exatos", "Os seis cenários mais prováveis")
+    section_title("Resultados exatos", "6 mais prováveis")
     score_cards(
         [
             (f"{home}–{away}", probability)
@@ -2069,7 +2039,7 @@ with st.expander("Golos e resultados exatos"):
         ]
     )
 
-    section_title("Golos esperados", "Produção estimada por equipa")
+    section_title("Golos esperados")
     stat_cards(
         [
             (
@@ -2087,7 +2057,7 @@ with st.expander("Golos e resultados exatos"):
         ]
     )
 
-    section_title("Linhas de golos", "Mais e menos")
+    section_title("Linhas de golos")
     goal_rows = []
     for line in [0.5, 1.5, 2.5, 3.5, 4.5]:
         over = prediction["over_25"] if line == 2.5 else total_goals_over(matrix, line)
@@ -2099,7 +2069,7 @@ with st.expander("Golos e resultados exatos"):
         )
     probability_list(goal_rows)
 
-    section_title("Equipas a marcar", "Golos e balizas invioladas")
+    section_title("Equipas a marcar")
     probability_list(
         [
             (f"{game['home']} marca", home_scores, ""),
@@ -2129,7 +2099,7 @@ with st.expander("Golos e resultados exatos"):
         )
 
 with st.expander("Primeira parte"):
-    section_title("Resultado ao intervalo", "Probabilidades 1X2")
+    section_title("Resultado ao intervalo")
     outcome_cards(
         [
             (game["home"], prediction["ht_home"]),
@@ -2137,7 +2107,7 @@ with st.expander("Primeira parte"):
             (game["away"], prediction["ht_away"]),
         ]
     )
-    section_title("Resultados exatos ao intervalo", "Cenários mais prováveis")
+    section_title("Resultados exatos ao intervalo")
     score_cards(
         [
             (f"{home}–{away}", probability)
@@ -2209,6 +2179,6 @@ with st.expander("Metodologia e confiança"):
         )
 
 note(
-    "As probabilidades são estimativas estatísticas. Lesões, suspensões, onze inicial e alterações táticas de última hora devem ser confirmados antes da interpretação."
+    "Estimativa estatística. Confirmar lesões, suspensões e onze inicial."
 )
 footer()
