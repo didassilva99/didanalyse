@@ -1,0 +1,112 @@
+{
+  "banca_inicial": 1.0,
+  "max_etapas": 15,
+  "ultima_atualizacao": "A preparar",
+  "grupos": [
+    {
+      "odd": 1.2,
+      "desafios": [
+        {
+          "nome": "Desafio 1",
+          "apostas": []
+        },
+        {
+          "nome": "Desafio 2",
+          "apostas": []
+        },
+        {
+          "nome": "Desafio 3",
+          "apostas": []
+        },
+        {
+          "nome": "Desafio 4",
+          "apostas": []
+        }
+      ]
+    },
+    {
+      "odd": 1.3,
+      "desafios": [
+        {
+          "nome": "Desafio 1",
+          "apostas": []
+        },
+        {
+          "nome": "Desafio 2",
+          "apostas": []
+        },
+        {
+          "nome": "Desafio 3",
+          "apostas": []
+        },
+        {
+          "nome": "Desafio 4",
+          "apostas": []
+        }
+      ]
+    },
+    {
+      "odd": 1.4,
+      "desafios": [
+        {
+          "nome": "Desafio 1",
+          "apostas": []
+        },
+        {
+          "nome": "Desafio 2",
+          "apostas": []
+        },
+        {
+          "nome": "Desafio 3",
+          "apostas": []
+        },
+        {
+          "nome": "Desafio 4",
+          "apostas": []
+        }
+      ]
+    },
+    {
+      "odd": 1.5,
+      "desafios": [
+        {
+          "nome": "Desafio 1",
+          "apostas": []
+        },
+        {
+          "nome": "Desafio 2",
+          "apostas": []
+        },
+        {
+          "nome": "Desafio 3",
+          "apostas": []
+        },
+        {
+          "nome": "Desafio 4",
+          "apostas": []
+        }
+      ]
+    },
+    {
+      "odd": 1.6,
+      "desafios": [
+        {
+          "nome": "Desafio 1",
+          "apostas": []
+        },
+        {
+          "nome": "Desafio 2",
+          "apostas": []
+        },
+        {
+          "nome": "Desafio 3",
+          "apostas": []
+        },
+        {
+          "nome": "Desafio 4",
+          "apostas": []
+        }
+      ]
+    }
+  ]
+}

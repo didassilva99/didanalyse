@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 from datetime import date
+from html import escape
+import json
+from math import prod
+from pathlib import Path
 
 import streamlit as st
 
@@ -61,7 +65,507 @@ st.set_page_config(
 inject_styles()
 init_db()
 brand_header()
-st.caption("DidAnalyze · Versão 1.2 · Todas as probabilidades numa página")
+st.caption("DidAnalyze · Versão 1.4 · Desafios acumulados até 15 etapas")
+
+st.markdown(
+    """
+<style>
+.challenge-nav [data-testid="stRadio"] > div {
+  gap: .45rem;
+}
+.challenge-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: .72rem;
+  margin: .8rem 0 1.15rem;
+}
+.challenge-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 1rem;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, .05);
+}
+.challenge-card.active {
+  border-color: #86efac;
+  background: linear-gradient(180deg, #f0fdf4, #ffffff);
+}
+.challenge-card.failed {
+  border-color: #fecaca;
+  background: linear-gradient(180deg, #fef2f2, #ffffff);
+}
+.challenge-kicker {
+  color: var(--muted);
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.challenge-name {
+  color: var(--text);
+  font-size: 1.02rem;
+  font-weight: 900;
+  margin-top: .2rem;
+}
+.challenge-target {
+  color: var(--green-dark);
+  font-size: 1.55rem;
+  font-weight: 900;
+  letter-spacing: -.04em;
+  margin-top: .55rem;
+}
+.challenge-meta {
+  color: var(--muted);
+  font-size: .72rem;
+  margin-top: .15rem;
+}
+.challenge-status {
+  display: inline-block;
+  margin-top: .68rem;
+  border-radius: 999px;
+  padding: .3rem .55rem;
+  background: var(--green-soft);
+  border: 1px solid #bbf7d0;
+  color: var(--green-dark);
+  font-size: .68rem;
+  font-weight: 820;
+}
+.challenge-status.waiting {
+  background: var(--blue-soft);
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+}
+.challenge-status.failed {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #991b1b;
+}
+.challenge-progress {
+  height: 7px;
+  background: #e9eef5;
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: .65rem;
+}
+.challenge-progress > span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--green), #4ade80);
+  border-radius: inherit;
+}
+.challenge-table-wrap {
+  overflow-x: auto;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  margin-top: .65rem;
+}
+.challenge-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 760px;
+}
+.challenge-table th {
+  text-align: left;
+  color: var(--muted);
+  background: var(--surface-soft);
+  font-size: .68rem;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  padding: .75rem .8rem;
+  border-bottom: 1px solid var(--line);
+}
+.challenge-table td {
+  color: var(--text);
+  font-size: .78rem;
+  padding: .82rem .8rem;
+  border-bottom: 1px solid #eef2f7;
+  vertical-align: middle;
+}
+.challenge-table tr:last-child td {
+  border-bottom: none;
+}
+.challenge-step {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--blue-soft);
+  color: var(--blue);
+  font-weight: 900;
+}
+.challenge-step.won {
+  background: var(--green-soft);
+  color: var(--green-dark);
+}
+.challenge-step.lost {
+  background: #fef2f2;
+  color: #991b1b;
+}
+.result-pill {
+  display: inline-block;
+  border-radius: 999px;
+  padding: .28rem .52rem;
+  font-size: .67rem;
+  font-weight: 820;
+  background: var(--blue-soft);
+  color: #1d4ed8;
+}
+.result-pill.won {
+  background: var(--green-soft);
+  color: var(--green-dark);
+}
+.result-pill.lost {
+  background: #fef2f2;
+  color: #991b1b;
+}
+.result-pill.void {
+  background: var(--amber-soft);
+  color: #92400e;
+}
+@media (max-width: 900px) {
+  .challenge-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+}
+@media (max-width: 600px) {
+  .challenge-grid { grid-template-columns: 1fr; }
+}
+</style>
+    """,
+    unsafe_allow_html=True,
+)
+
+CHALLENGES_PATH = Path(__file__).resolve().parent / "desafios.json"
+
+
+def euro(value: float) -> str:
+    return f"{float(value):,.2f} €".replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+def odd_text(value: float) -> str:
+    return f"{float(value):.2f}".replace(".", ",")
+
+
+def load_challenges() -> dict:
+    try:
+        with CHALLENGES_PATH.open("r", encoding="utf-8") as file:
+            data = json.load(file)
+    except FileNotFoundError:
+        st.error("O ficheiro desafios.json não foi encontrado na raiz do projeto.")
+        st.stop()
+    except json.JSONDecodeError as error:
+        st.error(f"O ficheiro desafios.json tem um erro de formatação: {error}")
+        st.stop()
+
+    if not isinstance(data.get("grupos"), list):
+        st.error("O ficheiro desafios.json não contém os grupos de odds.")
+        st.stop()
+
+    return data
+
+
+def result_key(value: str) -> str:
+    value = str(value or "pendente").strip().lower()
+    aliases = {
+        "ganho": "won",
+        "ganha": "won",
+        "vencido": "won",
+        "vencida": "won",
+        "perdido": "lost",
+        "perdida": "lost",
+        "falhado": "lost",
+        "falhada": "lost",
+        "anulado": "void",
+        "anulada": "void",
+        "pendente": "pending",
+    }
+    return aliases.get(value, "pending")
+
+
+def challenge_bets(challenge: dict) -> dict[int, dict]:
+    bets = {}
+    for bet in challenge.get("apostas", []):
+        try:
+            stage = int(bet.get("etapa"))
+        except (TypeError, ValueError):
+            continue
+        if 1 <= stage <= 15:
+            bets[stage] = bet
+    return bets
+
+
+def challenge_summary(challenge: dict, target_odd: float, start_bank: float, max_stages: int) -> dict:
+    bets = challenge_bets(challenge)
+    bank = float(start_bank)
+    won = 0
+    lost = False
+    has_bet = bool(bets)
+
+    for stage in range(1, max_stages + 1):
+        bet = bets.get(stage)
+        if not bet:
+            break
+
+        result = result_key(bet.get("resultado"))
+        if result == "won":
+            used_odd = float(bet.get("odd_escolhida") or target_odd)
+            bank *= used_odd
+            won += 1
+        elif result == "lost":
+            bank = 0.0
+            lost = True
+            break
+        elif result in {"pending", "void"}:
+            break
+
+    if won >= max_stages:
+        status = "Concluído"
+        status_class = ""
+        card_class = "active"
+        current_stage = max_stages
+    elif lost:
+        status = "Falhado"
+        status_class = "failed"
+        card_class = "failed"
+        current_stage = min(won + 1, max_stages)
+    elif has_bet:
+        status = "Em curso"
+        status_class = ""
+        card_class = "active"
+        current_stage = min(won + 1, max_stages)
+    else:
+        status = "Por iniciar"
+        status_class = "waiting"
+        card_class = ""
+        current_stage = 1
+
+    final_target = float(start_bank) * (float(target_odd) ** max_stages)
+    progress = min(100.0, won / max_stages * 100.0)
+
+    return {
+        "won": won,
+        "status": status,
+        "status_class": status_class,
+        "card_class": card_class,
+        "current_stage": current_stage,
+        "current_bank": bank,
+        "final_target": final_target,
+        "progress": progress,
+        "bets": bets,
+    }
+
+
+def render_challenge_table(
+    challenge: dict,
+    target_odd: float,
+    start_bank: float,
+    max_stages: int,
+) -> None:
+    summary = challenge_summary(challenge, target_odd, start_bank, max_stages)
+    bets = summary["bets"]
+
+    labels = {
+        "won": ("Ganho", "won"),
+        "lost": ("Perdido", "lost"),
+        "void": ("Anulado", "void"),
+        "pending": ("Pendente", ""),
+    }
+
+    rows = []
+    for stage in range(1, max_stages + 1):
+        projected_stake = start_bank * (target_odd ** (stage - 1))
+        projected_return = start_bank * (target_odd ** stage)
+        bet = bets.get(stage, {})
+
+        result = result_key(bet.get("resultado"))
+        result_label, result_class = labels[result]
+        step_class = result_class if result_class in {"won", "lost"} else ""
+
+        game = escape(str(bet.get("jogo") or "Por definir"))
+        selection = escape(str(bet.get("selecao") or "Por definir"))
+        selected_odd = bet.get("odd_escolhida")
+        selected_odd_text = odd_text(selected_odd) if selected_odd not in (None, "") else "—"
+
+        rows.append(
+            f"""
+<tr>
+  <td><div class="challenge-step {step_class}">{stage}</div></td>
+  <td><strong>{euro(projected_stake)}</strong></td>
+  <td><strong>{euro(projected_return)}</strong></td>
+  <td>{game}</td>
+  <td>{selection}</td>
+  <td><strong>{selected_odd_text}</strong></td>
+  <td><span class="result-pill {result_class}">{result_label}</span></td>
+</tr>
+            """
+        )
+
+    st.markdown(
+        f"""
+<div class="challenge-table-wrap">
+<table class="challenge-table">
+  <thead>
+    <tr>
+      <th>Etapa</th>
+      <th>Valor a apostar</th>
+      <th>Retorno acumulado</th>
+      <th>Jogo</th>
+      <th>Seleção</th>
+      <th>Odd registada</th>
+      <th>Resultado</th>
+    </tr>
+  </thead>
+  <tbody>
+    {''.join(rows)}
+  </tbody>
+</table>
+</div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_challenges_page() -> None:
+    data = load_challenges()
+    groups = data["grupos"]
+    start_bank = float(data.get("banca_inicial", 1.0))
+    max_stages = int(data.get("max_etapas", 15))
+
+    st.markdown(
+        """
+<div class="page-intro">
+  <div class="page-kicker">Desafios acumulados</div>
+  <div class="page-title">Cinco odds. Quatro desafios por odd. Quinze etapas.</div>
+  <div class="page-copy">
+    Cada desafio começa com 1 € e reinveste todo o retorno na etapa seguinte.
+    O objetivo é completar 15 resultados consecutivos dentro da mesma odd.
+  </div>
+</div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    total_challenges = sum(len(group.get("desafios", [])) for group in groups)
+    total_initial = total_challenges * start_bank
+
+    stat_cards(
+        [
+            ("Tipos de odd", str(len(groups)), "de 1,20 a 1,60"),
+            ("Desafios", str(total_challenges), "4 por cada odd"),
+            ("Etapas máximas", str(max_stages), "por desafio"),
+            ("Investimento inicial", euro(total_initial), f"{euro(start_bank)} por desafio"),
+        ]
+    )
+
+    group_labels = [f"Odd {odd_text(group.get('odd', 0))}" for group in groups]
+    selected_label = st.radio(
+        "Escolher grupo de desafios",
+        group_labels,
+        horizontal=True,
+    )
+    selected_index = group_labels.index(selected_label)
+    selected_group = groups[selected_index]
+    target_odd = float(selected_group.get("odd", 0))
+    challenges = selected_group.get("desafios", [])
+    final_target = start_bank * (target_odd ** max_stages)
+
+    section_title(
+        f"Desafios de odd {odd_text(target_odd)}",
+        f"Cada desafio começa em {euro(start_bank)} e poderá atingir {euro(final_target)} após {max_stages} ganhos.",
+    )
+
+    cards = []
+    for challenge in challenges:
+        summary = challenge_summary(challenge, target_odd, start_bank, max_stages)
+        cards.append(
+            f"""
+<div class="challenge-card {summary['card_class']}">
+  <div class="challenge-kicker">Odd fixa {odd_text(target_odd)}</div>
+  <div class="challenge-name">{escape(str(challenge.get('nome', 'Desafio')))}</div>
+  <div class="challenge-target">{euro(summary['current_bank'])}</div>
+  <div class="challenge-meta">Banca atual</div>
+  <div class="challenge-progress"><span style="width:{summary['progress']:.1f}%"></span></div>
+  <div class="challenge-meta">{summary['won']} de {max_stages} etapas ganhas</div>
+  <div class="challenge-meta">Próxima etapa: {summary['current_stage']}</div>
+  <div class="challenge-status {summary['status_class']}">{summary['status']}</div>
+</div>
+            """
+        )
+
+    st.markdown(
+        '<div class="challenge-grid">' + "".join(cards) + "</div>",
+        unsafe_allow_html=True,
+    )
+
+    selected_name = st.selectbox(
+        "Ver detalhes do desafio",
+        [str(challenge.get("nome", "Desafio")) for challenge in challenges],
+        key=f"challenge_{target_odd}",
+    )
+    selected_challenge = next(
+        challenge
+        for challenge in challenges
+        if str(challenge.get("nome", "Desafio")) == selected_name
+    )
+    summary = challenge_summary(
+        selected_challenge,
+        target_odd,
+        start_bank,
+        max_stages,
+    )
+
+    section_title(
+        f"{selected_name} · odd {odd_text(target_odd)}",
+        (
+            f"{summary['status']} · {summary['won']} de {max_stages} etapas ganhas · "
+            f"Banca atual: {euro(summary['current_bank'])}"
+        ),
+    )
+
+    render_challenge_table(
+        selected_challenge,
+        target_odd,
+        start_bank,
+        max_stages,
+    )
+
+    st.info(
+        "Os jogos ainda estão por definir. Antes de cada jornada, adiciona apenas "
+        "a próxima aposta de cada desafio no ficheiro desafios.json."
+    )
+
+    with st.expander("Como funciona o acumulado?"):
+        st.write(
+            f"Cada desafio começa com {euro(start_bank)}. Num desafio de odd "
+            f"{odd_text(target_odd)}, o retorno previsto da primeira etapa é "
+            f"{euro(start_bank * target_odd)}. Esse valor passa integralmente para "
+            "a segunda etapa, repetindo-se até ao máximo de 15 ganhos."
+        )
+        st.write(
+            f"Com 15 ganhos consecutivos na odd {odd_text(target_odd)}, o valor "
+            f"teórico final é {euro(final_target)}."
+        )
+
+    note(
+        "Os valores apresentados são projeções matemáticas e não garantem ganhos. "
+        "Uma aposta perdida encerra a sequência desse desafio."
+    )
+    footer()
+
+
+st.markdown('<div class="challenge-nav">', unsafe_allow_html=True)
+active_area = st.radio(
+    "Área",
+    ["⚽ Prognósticos", "🎯 Desafios Sequenciais"],
+    horizontal=True,
+    label_visibility="collapsed",
+)
+st.markdown("</div>", unsafe_allow_html=True)
+
+if active_area == "🎯 Desafios Sequenciais":
+    render_challenges_page()
+    st.stop()
+
 page_intro()
 picker_header()
 
