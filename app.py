@@ -1,15 +1,9 @@
 from __future__ import annotations
 
-from datetime import date, datetime, time
+from datetime import date
 from html import escape
-import base64
-import hmac
-import json
-from math import prod
-from pathlib import Path
 
 import pandas as pd
-import requests
 
 import streamlit as st
 
@@ -71,1695 +65,225 @@ inject_styles()
 init_db()
 brand_header()
 
-st.markdown(
-    """
-<style>
-.challenge-nav [data-testid="stRadio"] > div {
-  gap: .45rem;
-}
-.challenge-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: .72rem;
-  margin: .8rem 0 1.15rem;
-}
-.challenge-card {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  padding: 1rem;
-  box-shadow: 0 14px 36px rgba(0, 0, 0, .24);
-}
-.challenge-card.active {
-  border-color: rgba(53, 232, 135, .44);
-  background: linear-gradient(145deg, rgba(53, 232, 135, .12), rgba(13, 21, 34, .96));
-}
-.challenge-card.failed {
-  border-color: rgba(251, 113, 133, .42);
-  background: linear-gradient(145deg, rgba(251, 113, 133, .10), rgba(13, 21, 34, .96));
-}
-.challenge-kicker {
-  color: var(--muted);
-  font-size: .68rem;
-  font-weight: 800;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-}
-.challenge-name {
-  color: var(--text);
-  font-size: 1.02rem;
-  font-weight: 900;
-  margin-top: .2rem;
-}
-.challenge-target {
-  color: var(--green-dark);
-  font-size: 1.55rem;
-  font-weight: 900;
-  letter-spacing: -.04em;
-  margin-top: .55rem;
-}
-.challenge-meta {
-  color: var(--muted);
-  font-size: .72rem;
-  margin-top: .15rem;
-}
-.challenge-status {
-  display: inline-block;
-  margin-top: .68rem;
-  border-radius: 999px;
-  padding: .3rem .55rem;
-  background: var(--green-soft);
-  border: 1px solid rgba(53, 232, 135, .30);
-  color: var(--green-dark);
-  font-size: .68rem;
-  font-weight: 820;
-}
-.challenge-status.waiting {
-  background: var(--blue-soft);
-  border-color: rgba(56, 189, 248, .28);
-  color: #7dd3fc;
-}
-.challenge-status.failed {
-  background: var(--red-soft);
-  border-color: rgba(251, 113, 133, .30);
-  color: #fda4af;
-}
-.challenge-progress {
-  height: 7px;
-  background: #182334;
-  border-radius: 999px;
-  overflow: hidden;
-  margin-top: .65rem;
-}
-.challenge-progress > span {
-  display: block;
-  height: 100%;
-  background: linear-gradient(90deg, var(--green), #4ade80);
-  border-radius: inherit;
-}
-.challenge-table-wrap {
-  overflow-x: auto;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  margin-top: .65rem;
-}
-.challenge-table {
-  width: 100%;
-  border-collapse: collapse;
-  min-width: 760px;
-}
-.challenge-table th {
-  text-align: left;
-  color: var(--muted);
-  background: var(--surface-soft);
-  font-size: .68rem;
-  letter-spacing: .05em;
-  text-transform: uppercase;
-  padding: .75rem .8rem;
-  border-bottom: 1px solid var(--line);
-}
-.challenge-table td {
-  color: var(--text);
-  font-size: .78rem;
-  padding: .82rem .8rem;
-  border-bottom: 1px solid var(--line);
-  vertical-align: middle;
-}
-.challenge-table tr:last-child td {
-  border-bottom: none;
-}
-.challenge-step {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  background: var(--blue-soft);
-  color: var(--blue);
-  font-weight: 900;
-}
-.challenge-step.won {
-  background: var(--green-soft);
-  color: var(--green-dark);
-}
-.challenge-step.lost {
-  background: #fef2f2;
-  color: #fda4af;
-}
-.result-pill {
-  display: inline-block;
-  border-radius: 999px;
-  padding: .28rem .52rem;
-  font-size: .67rem;
-  font-weight: 820;
-  background: var(--blue-soft);
-  color: #7dd3fc;
-}
-.result-pill.won {
-  background: var(--green-soft);
-  color: var(--green-dark);
-}
-.result-pill.lost {
-  background: #fef2f2;
-  color: #fda4af;
-}
-.result-pill.void {
-  background: var(--amber-soft);
-  color: #fcd34d;
-}
-.accumulator-leg {
-  padding: .34rem 0;
-  border-bottom: 1px dashed var(--line);
-  line-height: 1.35;
-}
-.accumulator-leg:last-child {
-  border-bottom: none;
-}
-.accumulator-leg-number {
-  display: inline-grid;
-  place-items: center;
-  width: 20px;
-  height: 20px;
-  margin-right: .35rem;
-  border-radius: 50%;
-  background: var(--blue-soft);
-  color: var(--blue);
-  font-size: .64rem;
-  font-weight: 900;
-}
-.accumulator-leg-meta {
-  color: var(--muted);
-  font-size: .67rem;
-  margin-left: 1.65rem;
-}
-.accumulator-odd {
-  color: var(--green-dark);
-  font-weight: 900;
-  white-space: nowrap;
-}
-@media (max-width: 900px) {
-  .challenge-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
-}
-@media (max-width: 600px) {
-  .challenge-grid { grid-template-columns: 1fr; }
-}
-
-.challenge-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: .55rem;
-}
-.challenge-card {
-  border-radius: 13px;
-  padding: .78rem;
-  box-shadow: none;
-}
-.challenge-target {
-  font-size: 1.25rem;
-  margin-top: .38rem;
-}
-.challenge-meta {
-  font-size: .66rem;
-}
-.challenge-status {
-  margin-top: .5rem;
-  padding: .25rem .46rem;
-  font-size: .63rem;
-}
-.stage-line {
-  display: grid;
-  grid-template-columns: repeat(15, minmax(20px, 1fr));
-  align-items: start;
-  gap: .22rem;
-  margin: .65rem 0 .9rem;
-}
-.stage-item {
-  text-align: center;
-  min-width: 0;
-}
-.stage-dot {
-  width: 24px;
-  height: 24px;
-  margin: 0 auto;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: #172234;
-  border: 1px solid var(--line);
-  color: #7f91a7;
-  font-size: .59rem;
-  font-weight: 900;
-}
-.stage-dot.won {
-  background: var(--green-soft);
-  border-color: rgba(53, 232, 135, .42);
-  color: var(--green-dark);
-}
-.stage-dot.current {
-  background: var(--amber-soft);
-  border-color: rgba(251, 191, 36, .65);
-  color: #fcd34d;
-  box-shadow: 0 0 0 3px rgba(251, 191, 36, .13);
-}
-.stage-dot.lost {
-  background: #fef2f2;
-  border-color: rgba(251, 113, 133, .62);
-  color: #fda4af;
-}
-.current-bet-card {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: .88rem;
-}
-.current-bet-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: .8rem;
-}
-.current-bet-title {
-  color: var(--text);
-  font-size: .94rem;
-  font-weight: 900;
-}
-.current-bet-subtitle {
-  color: var(--muted);
-  font-size: .68rem;
-  margin-top: .14rem;
-}
-.current-bet-odd {
-  color: var(--green-dark);
-  font-size: 1.25rem;
-  font-weight: 900;
-  white-space: nowrap;
-}
-.current-bet-stats {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0,1fr));
-  gap: .45rem;
-  margin-top: .72rem;
-}
-.current-bet-stat {
-  background: var(--surface-soft);
-  border-radius: 10px;
-  padding: .55rem;
-}
-.current-bet-stat span {
-  display: block;
-  color: var(--muted);
-  font-size: .61rem;
-}
-.current-bet-stat strong {
-  display: block;
-  color: var(--text);
-  font-size: .86rem;
-  margin-top: .12rem;
-}
-.history-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-.history-table th,
-.history-table td {
-  padding: .62rem .55rem;
-  border-bottom: 1px solid var(--line);
-  text-align: left;
-  font-size: .72rem;
-}
-.history-table th {
-  color: var(--muted);
-  font-size: .62rem;
-  text-transform: uppercase;
-  letter-spacing: .05em;
-}
-@media (max-width: 760px) {
-  .stage-line {
-    grid-template-columns: repeat(8, minmax(22px, 1fr));
-    row-gap: .5rem;
-  }
-  .current-bet-stats {
-    grid-template-columns: 1fr;
-  }
-}
-
-.challenge-card {
-  background: linear-gradient(145deg, rgba(17, 28, 44, .97), rgba(10, 17, 28, .97));
-  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
-}
-.challenge-card:hover {
-  transform: translateY(-2px);
-  border-color: rgba(56, 189, 248, .25);
-  box-shadow: 0 16px 38px rgba(0, 0, 0, .30);
-}
-.challenge-progress > span {
-  box-shadow: 0 0 16px rgba(53, 232, 135, .28);
-}
-.challenge-table-wrap,
-.current-bet-card {
-  background: linear-gradient(145deg, rgba(17, 28, 44, .97), rgba(10, 17, 28, .97));
-  box-shadow: 0 14px 36px rgba(0, 0, 0, .18);
-}
-.current-bet-odd,
-.challenge-target,
-.accumulator-odd {
-  text-shadow: 0 0 18px rgba(53, 232, 135, .16);
-}
-.current-bet-stat {
-  border: 1px solid var(--line);
-}
-.stage-dot.current {
-  box-shadow: 0 0 0 3px rgba(251, 191, 36, .10), 0 0 20px rgba(251, 191, 36, .12);
-}
-</style>
-    """,
-    unsafe_allow_html=True,
-)
-
-CHALLENGES_PATH = Path(__file__).resolve().parent / "desafios.json"
-RESULT_OPTIONS = ["pendente", "ganho", "perdido", "anulado"]
-
-
-def euro(value: float) -> str:
-    return f"{float(value):,.2f} €".replace(",", "X").replace(".", ",").replace("X", ".")
-
-
-def odd_text(value: float) -> str:
-    return f"{float(value):.2f}".replace(".", ",")
-
-
-def clone_data(data: dict) -> dict:
-    return json.loads(json.dumps(data, ensure_ascii=False))
-
-
-def load_challenges_file() -> dict:
+def _player_table_available() -> bool:
     try:
-        with CHALLENGES_PATH.open("r", encoding="utf-8") as file:
-            data = json.load(file)
-    except FileNotFoundError:
-        st.error("O ficheiro desafios.json não foi encontrado na raiz do projeto.")
-        st.stop()
-    except json.JSONDecodeError as error:
-        st.error(f"O ficheiro desafios.json tem um erro de formatação: {error}")
-        st.stop()
-
-    if not isinstance(data.get("grupos"), list):
-        st.error("O ficheiro desafios.json não contém os grupos de odds.")
-        st.stop()
-
-    return data
-
-
-def load_challenges() -> dict:
-    preview = st.session_state.get("admin_challenges_data")
-    if isinstance(preview, dict):
-        return preview
-    return load_challenges_file()
-
-
-def secret_value(name: str) -> str:
-    try:
-        value = st.secrets.get(name, "")
+        with get_connection() as conn:
+            conn.execute("SELECT 1 FROM player_match_stats LIMIT 1").fetchone()
+        return True
     except Exception:
-        return ""
-    return str(value or "").strip()
-
-
-def result_key(value: str) -> str:
-    value = str(value or "pendente").strip().lower()
-    aliases = {
-        "ganho": "won",
-        "ganha": "won",
-        "vencido": "won",
-        "vencida": "won",
-        "perdido": "lost",
-        "perdida": "lost",
-        "falhado": "lost",
-        "falhada": "lost",
-        "anulado": "void",
-        "anulada": "void",
-        "pendente": "pending",
-    }
-    return aliases.get(value, "pending")
-
-
-def challenge_bets(challenge: dict) -> dict[int, dict]:
-    bets: dict[int, dict] = {}
-    for bet in challenge.get("apostas", []):
-        try:
-            stage = int(bet.get("etapa"))
-        except (TypeError, ValueError):
-            continue
-        if 1 <= stage <= 15:
-            bets[stage] = bet
-    return bets
-
-
-def safe_float(value, default: float = 0.0) -> float:
-    try:
-        if value is None or pd.isna(value):
-            return float(default)
-        return float(str(value).replace(",", "."))
-    except (TypeError, ValueError):
-        return float(default)
-
-
-def normalize_selections(bet: dict) -> list[dict]:
-    """Lê acumuladores novos e converte apostas antigas de uma seleção."""
-    raw = bet.get("selecoes")
-    selections: list[dict] = []
-
-    if isinstance(raw, list):
-        for item in raw:
-            if not isinstance(item, dict):
-                continue
-            selections.append(
-                {
-                    "competicao": str(item.get("competicao") or "").strip(),
-                    "jogo": str(item.get("jogo") or "").strip(),
-                    "selecao": str(item.get("selecao") or "").strip(),
-                    "data": str(item.get("data") or "").strip(),
-                    "hora": str(item.get("hora") or "").strip(),
-                    "odd": safe_float(item.get("odd"), 0.0),
-                }
-            )
-
-    if selections:
-        return selections
-
-    # Compatibilidade com a versão anterior, que guardava apenas uma seleção.
-    if str(bet.get("jogo") or "").strip() or str(bet.get("selecao") or "").strip():
-        return [
-            {
-                "competicao": str(bet.get("competicao") or "").strip(),
-                "jogo": str(bet.get("jogo") or "").strip(),
-                "selecao": str(bet.get("selecao") or "").strip(),
-                "data": str(bet.get("data") or "").strip(),
-                "hora": str(bet.get("hora") or "").strip(),
-                "odd": safe_float(bet.get("odd_escolhida"), 0.0),
-            }
-        ]
-
-    return []
-
-
-def combined_odd(bet: dict, target_odd: float) -> float:
-    selections = normalize_selections(bet)
-    valid_odds = [
-        safe_float(item.get("odd"), 0.0)
-        for item in selections
-        if safe_float(item.get("odd"), 0.0) > 1.0
-    ]
-
-    if valid_odds:
-        return float(prod(valid_odds))
-
-    legacy = safe_float(
-        bet.get("odd_combinada") or bet.get("odd_escolhida"),
-        0.0,
-    )
-    return legacy if legacy > 1.0 else float(target_odd)
-
-
-def editor_rows_for_bet(bet: dict, target_odd: float) -> list[dict]:
-    selections = normalize_selections(bet)
-    if not selections:
-        selections = [
-            {
-                "competicao": "",
-                "jogo": "",
-                "selecao": "",
-                "data": date.today().isoformat(),
-                "hora": "15:00",
-                "odd": round(float(target_odd), 2),
-            }
-        ]
-
-    return [
-        {
-            "Competição": item.get("competicao", ""),
-            "Jogo": item.get("jogo", ""),
-            "Seleção / mercado": item.get("selecao", ""),
-            "Data": item.get("data", ""),
-            "Hora": item.get("hora", ""),
-            "Odd": safe_float(item.get("odd"), target_odd),
-        }
-        for item in selections
-    ]
-
-
-def selections_from_editor(editor_data) -> tuple[list[dict], list[str]]:
-    if hasattr(editor_data, "to_dict"):
-        records = editor_data.to_dict(orient="records")
-    else:
-        records = list(editor_data or [])
-
-    selections: list[dict] = []
-    errors: list[str] = []
-
-    for index, row in enumerate(records, start=1):
-        competition = str(row.get("Competição") or "").strip()
-        game = str(row.get("Jogo") or "").strip()
-        market = str(row.get("Seleção / mercado") or "").strip()
-        game_date = str(row.get("Data") or "").strip()
-        game_time = str(row.get("Hora") or "").strip()
-        odd = safe_float(row.get("Odd"), 0.0)
-
-        # Ignora uma linha totalmente vazia criada pelo editor.
-        if not any([competition, game, market, game_date, game_time]) and odd <= 0:
-            continue
-
-        if not game:
-            errors.append(f"Seleção {index}: falta o jogo.")
-        if not market:
-            errors.append(f"Seleção {index}: falta a seleção ou mercado.")
-        if odd <= 1.0:
-            errors.append(f"Seleção {index}: a odd tem de ser superior a 1,00.")
-
-        selections.append(
-            {
-                "competicao": competition,
-                "jogo": game,
-                "selecao": market,
-                "data": game_date,
-                "hora": game_time,
-                "odd": round(float(odd), 3),
-            }
-        )
-
-    if not selections:
-        errors.append("Adiciona pelo menos uma seleção ao acumulador.")
-
-    return selections, errors
-
-
-def accumulator_html(bet: dict) -> str:
-    selections = normalize_selections(bet)
-    if not selections:
-        return "Por definir"
-
-    lines = []
-    for index, item in enumerate(selections, start=1):
-        game = escape(str(item.get("jogo") or "Jogo por definir"))
-        market = escape(str(item.get("selecao") or "Seleção por definir"))
-        competition = escape(str(item.get("competicao") or ""))
-        date_value = escape(str(item.get("data") or ""))
-        time_value = escape(str(item.get("hora") or ""))
-        odd = safe_float(item.get("odd"), 0.0)
-
-        meta_parts = [part for part in [competition, date_value, time_value] if part]
-        meta = " · ".join(meta_parts)
-        meta_html = (
-            f'<div class="accumulator-leg-meta">{meta}</div>'
-            if meta
-            else ""
-        )
-        odd_html = (
-            f' <span class="accumulator-odd">@ {odd_text(odd)}</span>'
-            if odd > 1.0
-            else ""
-        )
-
-        lines.append(
-            f"""
-<div class="accumulator-leg">
-  <span class="accumulator-leg-number">{index}</span>
-  <strong>{game}</strong> — {market}{odd_html}
-  {meta_html}
-</div>
-            """
-        )
-
-    return "".join(lines)
-
-
-def challenge_summary(
-    challenge: dict,
-    target_odd: float,
-    start_bank: float,
-    max_stages: int,
-) -> dict:
-    bets = challenge_bets(challenge)
-    bank = float(start_bank)
-    won = 0
-    lost = False
-    pending = False
-
-    for stage in range(1, max_stages + 1):
-        bet = bets.get(stage)
-        if not bet:
-            break
-
-        result = result_key(bet.get("resultado"))
-        if result == "won":
-            bank *= combined_odd(bet, target_odd)
-            won += 1
-        elif result == "lost":
-            bank = 0.0
-            lost = True
-            break
-        elif result in {"void", "pending"}:
-            pending = True
-            break
-
-    if won >= max_stages:
-        status = "Concluído"
-        status_class = ""
-        card_class = "active"
-        current_stage = max_stages
-    elif lost:
-        status = "Falhado"
-        status_class = "failed"
-        card_class = "failed"
-        current_stage = min(won + 1, max_stages)
-    elif bets or pending:
-        status = "Em curso"
-        status_class = ""
-        card_class = "active"
-        current_stage = min(won + 1, max_stages)
-    else:
-        status = "Por iniciar"
-        status_class = "waiting"
-        card_class = ""
-        current_stage = 1
-
-    final_target = float(start_bank) * (float(target_odd) ** max_stages)
-    progress = min(100.0, won / max_stages * 100.0)
-
-    return {
-        "won": won,
-        "lost": lost,
-        "status": status,
-        "status_class": status_class,
-        "card_class": card_class,
-        "current_stage": current_stage,
-        "current_bank": bank,
-        "final_target": final_target,
-        "progress": progress,
-        "bets": bets,
-    }
-
-
-def stage_financials(
-    challenge: dict,
-    target_odd: float,
-    start_bank: float,
-    max_stages: int,
-) -> list[dict]:
-    bets = challenge_bets(challenge)
-    rows: list[dict] = []
-    running_bank = float(start_bank)
-    sequence_open = True
-
-    for stage in range(1, max_stages + 1):
-        bet = bets.get(stage, {})
-        used_odd = combined_odd(bet, target_odd)
-        stake = running_bank
-        potential_return = stake * used_odd
-        result = result_key(bet.get("resultado"))
-
-        rows.append(
-            {
-                "stage": stage,
-                "stake": stake,
-                "potential_return": potential_return,
-                "bet": bet,
-                "result": result,
-                "used_odd": used_odd,
-                "is_projected": not bool(bet),
-            }
-        )
-
-        if result == "won":
-            running_bank = potential_return
-        elif result == "lost":
-            running_bank = 0.0
-            sequence_open = False
-        elif result == "pending" and bet:
-            # Para projetar as etapas seguintes, assume o retorno potencial.
-            running_bank = potential_return
-            sequence_open = False
-        elif result == "void" and bet:
-            # Uma anulada mantém a banca; a mesma etapa deverá ser substituída.
-            running_bank = stake
-            sequence_open = False
-        elif sequence_open:
-            running_bank = potential_return
-        elif running_bank > 0:
-            running_bank *= float(target_odd)
-
-    return rows
-
-
-def render_challenge_table(
-    challenge: dict,
-    target_odd: float,
-    start_bank: float,
-    max_stages: int,
-) -> None:
-    labels = {
-        "won": ("Ganho", "won"),
-        "lost": ("Perdido", "lost"),
-        "void": ("Anulado", "void"),
-        "pending": ("Pendente", ""),
-    }
-
-    rows = []
-    for item in stage_financials(challenge, target_odd, start_bank, max_stages):
-        stage = item["stage"]
-        bet = item["bet"]
-        result = item["result"]
-        result_label, result_class = labels[result]
-        step_class = result_class if result_class in {"won", "lost"} else ""
-        projection_mark = " · projeção" if item["is_projected"] else ""
-        selections_count = len(normalize_selections(bet))
-        count_text = (
-            f"{selections_count} seleção"
-            if selections_count == 1
-            else f"{selections_count} seleções"
-        ) if selections_count else "Por definir"
-
-        rows.append(
-            f"""
-<tr>
-  <td><div class="challenge-step {step_class}">{stage}</div></td>
-  <td><strong>{euro(item['stake'])}</strong>{projection_mark}</td>
-  <td><strong>{euro(item['potential_return'])}</strong>{projection_mark}</td>
-  <td>{accumulator_html(bet)}<div class="accumulator-leg-meta">{count_text}</div></td>
-  <td><strong>{odd_text(item['used_odd'])}</strong>{projection_mark}</td>
-  <td><span class="result-pill {result_class}">{result_label}</span></td>
-</tr>
-            """
-        )
-
-    st.markdown(
-        f"""
-<div class="challenge-table-wrap">
-<table class="challenge-table">
-  <thead>
-    <tr>
-      <th>Etapa</th>
-      <th>Valor a apostar</th>
-      <th>Retorno</th>
-      <th>Acumulador</th>
-      <th>Odd combinada</th>
-      <th>Resultado</th>
-    </tr>
-  </thead>
-  <tbody>
-    {''.join(rows)}
-  </tbody>
-</table>
-</div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
-def all_challenge_summaries(data: dict) -> list[dict]:
-    start_bank = float(data.get("banca_inicial", 1.0))
-    max_stages = int(data.get("max_etapas", 15))
-    summaries = []
-
-    for group in data.get("grupos", []):
-        odd = float(group.get("odd", 0))
-        for challenge in group.get("desafios", []):
-            summary = challenge_summary(challenge, odd, start_bank, max_stages)
-            summary.update(
-                {
-                    "odd": odd,
-                    "name": str(challenge.get("nome", "Desafio")),
-                }
-            )
-            summaries.append(summary)
-
-    return summaries
-
-
-
-def render_stage_line(summary: dict, max_stages: int) -> None:
-    dots = []
-    for stage in range(1, max_stages + 1):
-        tone = ""
-        if stage <= summary["won"]:
-            tone = "won"
-        elif summary["lost"] and stage == summary["current_stage"]:
-            tone = "lost"
-        elif (
-            summary["status"] not in {"Concluído", "Falhado"}
-            and stage == summary["current_stage"]
-        ):
-            tone = "current"
-
-        dots.append(
-            f'<div class="stage-item">'
-            f'<div class="stage-dot {tone}">{stage}</div>'
-            f'</div>'
-        )
-
-    st.markdown(
-        '<div class="stage-line">' + "".join(dots) + "</div>",
-        unsafe_allow_html=True,
-    )
-
-
-def render_current_accumulator(
-    challenge: dict,
-    target_odd: float,
-    start_bank: float,
-    max_stages: int,
-) -> None:
-    summary = challenge_summary(challenge, target_odd, start_bank, max_stages)
-    financials = stage_financials(challenge, target_odd, start_bank, max_stages)
-
-    if summary["status"] == "Concluído":
-        st.success(
-            f"Desafio concluído: 15 etapas ganhas e banca final de "
-            f"{euro(summary['current_bank'])}."
-        )
-        return
-
-    stage_index = max(0, min(max_stages - 1, summary["current_stage"] - 1))
-    item = financials[stage_index]
-    bet = item["bet"]
-
-    if summary["lost"]:
-        st.error(
-            f"O desafio terminou na etapa {summary['current_stage']}. "
-            "O histórico permanece disponível abaixo."
-        )
-        return
-
-    if not bet:
-        st.info(
-            f"A aposta da etapa {summary['current_stage']} ainda não foi publicada."
-        )
-        return
-
-    selections = normalize_selections(bet)
-    result = result_key(bet.get("resultado"))
-    status_labels = {
-        "pending": "Pendente",
-        "won": "Ganho",
-        "lost": "Perdido",
-        "void": "Anulado",
-    }
-
-    st.markdown(
-        f"""
-<div class="current-bet-card">
-  <div class="current-bet-head">
-    <div>
-      <div class="current-bet-title">Etapa {item['stage']} · {len(selections)} seleções</div>
-      <div class="current-bet-subtitle">Estado: {status_labels[result]}</div>
-    </div>
-    <div class="current-bet-odd">{odd_text(item['used_odd'])}</div>
-  </div>
-  <div class="current-bet-stats">
-    <div class="current-bet-stat">
-      <span>Valor apostado</span>
-      <strong>{euro(item['stake'])}</strong>
-    </div>
-    <div class="current-bet-stat">
-      <span>Retorno possível</span>
-      <strong>{euro(item['potential_return'])}</strong>
-    </div>
-    <div class="current-bet-stat">
-      <span>Odd objetivo</span>
-      <strong>{odd_text(target_odd)}</strong>
-    </div>
-  </div>
-</div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    with st.expander("Ver seleções do acumulador"):
-        st.markdown(accumulator_html(bet), unsafe_allow_html=True)
-
-
-def render_challenge_history(
-    challenge: dict,
-    target_odd: float,
-    start_bank: float,
-    max_stages: int,
-) -> None:
-    actual = [
-        item
-        for item in stage_financials(challenge, target_odd, start_bank, max_stages)
-        if item["bet"]
-    ]
-
-    if not actual:
-        st.caption("Este desafio ainda não tem etapas registadas.")
-        return
-
-    status_labels = {
-        "pending": ("Pendente", ""),
-        "won": ("Ganho", "won"),
-        "lost": ("Perdido", "lost"),
-        "void": ("Anulado", "void"),
-    }
-    rows = []
-
-    for item in actual:
-        label, css_class = status_labels[item["result"]]
-        count = len(normalize_selections(item["bet"]))
-        rows.append(
-            f"""
-<tr>
-  <td><strong>{item['stage']}</strong></td>
-  <td>{count}</td>
-  <td>{odd_text(item['used_odd'])}</td>
-  <td>{euro(item['stake'])}</td>
-  <td>{euro(item['potential_return'])}</td>
-  <td><span class="result-pill {css_class}">{label}</span></td>
-</tr>
-            """
-        )
-
-    st.markdown(
-        f"""
-<div class="challenge-table-wrap">
-<table class="history-table">
-  <thead>
-    <tr>
-      <th>Etapa</th>
-      <th>Seleções</th>
-      <th>Odd</th>
-      <th>Aposta</th>
-      <th>Retorno</th>
-      <th>Estado</th>
-    </tr>
-  </thead>
-  <tbody>{''.join(rows)}</tbody>
-</table>
-</div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    for item in actual:
-        with st.expander(f"Etapa {item['stage']} · ver seleções"):
-            st.markdown(
-                accumulator_html(item["bet"]),
-                unsafe_allow_html=True,
-            )
-
-
-def render_challenge_projection(
-    challenge: dict,
-    target_odd: float,
-    start_bank: float,
-    max_stages: int,
-) -> None:
-    rows = []
-    for item in stage_financials(challenge, target_odd, start_bank, max_stages):
-        rows.append(
-            f"""
-<tr>
-  <td>{item['stage']}</td>
-  <td>{euro(item['stake'])}</td>
-  <td>{odd_text(item['used_odd'])}</td>
-  <td><strong>{euro(item['potential_return'])}</strong></td>
-</tr>
-            """
-        )
-
-    st.markdown(
-        f"""
-<div class="challenge-table-wrap">
-<table class="history-table">
-  <thead>
-    <tr>
-      <th>Etapa</th>
-      <th>Valor</th>
-      <th>Odd</th>
-      <th>Retorno projetado</th>
-    </tr>
-  </thead>
-  <tbody>{''.join(rows)}</tbody>
-</table>
-</div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-def render_challenges_page() -> None:
-    data = load_challenges()
-    groups = data["grupos"]
-    start_bank = float(data.get("banca_inicial", 1.0))
-    max_stages = int(data.get("max_etapas", 15))
-
-    section_title(
-        "Desafios",
-        f"5 odds · 4 desafios por odd · {max_stages} etapas · banca inicial {euro(start_bank)}",
-    )
-
-    summaries = all_challenge_summaries(data)
-    active = sum(item["status"] == "Em curso" for item in summaries)
-    completed = sum(item["status"] == "Concluído" for item in summaries)
-    failed = sum(item["status"] == "Falhado" for item in summaries)
-    current_total = sum(float(item["current_bank"]) for item in summaries)
-
-    stat_cards(
-        [
-            ("Ativos", str(active), "em curso"),
-            ("Concluídos", str(completed), "15 etapas"),
-            ("Falhados", str(failed), "encerrados"),
-            ("Banca atual", euro(current_total), "total"),
-        ]
-    )
-
-    group_labels = [f"{odd_text(group.get('odd', 0))}" for group in groups]
-    selected_label = st.radio(
-        "Odd do desafio",
-        group_labels,
-        horizontal=True,
-    )
-    selected_group = groups[group_labels.index(selected_label)]
-    target_odd = float(selected_group.get("odd", 0))
-    challenges = selected_group.get("desafios", [])
-    final_target = start_bank * (target_odd ** max_stages)
-
-    section_title(
-        f"Odd {odd_text(target_odd)}",
-        f"Quatro desafios independentes · objetivo teórico {euro(final_target)}",
-    )
-
-    cards = []
-    for challenge in challenges:
-        summary = challenge_summary(challenge, target_odd, start_bank, max_stages)
-        cards.append(
-            f"""
-<div class="challenge-card {summary['card_class']}">
-  <div class="challenge-name">{escape(str(challenge.get('nome', 'Desafio')))}</div>
-  <div class="challenge-target">{euro(summary['current_bank'])}</div>
-  <div class="challenge-meta">Banca atual</div>
-  <div class="challenge-progress"><span style="width:{summary['progress']:.1f}%"></span></div>
-  <div class="challenge-meta">Etapa {summary['current_stage']} de {max_stages}</div>
-  <div class="challenge-status {summary['status_class']}">{summary['status']}</div>
-</div>
-            """
-        )
-
-    st.markdown(
-        '<div class="challenge-grid">' + "".join(cards) + "</div>",
-        unsafe_allow_html=True,
-    )
-
-    selected_name = st.selectbox(
-        "Abrir desafio",
-        [str(challenge.get("nome", "Desafio")) for challenge in challenges],
-        key=f"challenge_clean_{target_odd}",
-    )
-    selected_challenge = next(
-        challenge
-        for challenge in challenges
-        if str(challenge.get("nome", "Desafio")) == selected_name
-    )
-    summary = challenge_summary(
-        selected_challenge,
-        target_odd,
-        start_bank,
-        max_stages,
-    )
-
-    section_title(f"{selected_name} · odd {odd_text(target_odd)}")
-    stat_cards(
-        [
-            ("Estado", summary["status"], "situação atual"),
-            ("Etapa", f"{summary['current_stage']}/{max_stages}", "progresso"),
-            ("Banca atual", euro(summary["current_bank"]), "acumulado"),
-            ("Objetivo", euro(summary["final_target"]), "15 ganhos"),
-        ]
-    )
-
-    render_stage_line(summary, max_stages)
-
-    section_title("Aposta atual")
-    render_current_accumulator(
-        selected_challenge,
-        target_odd,
-        start_bank,
-        max_stages,
-    )
-
-    with st.expander("Histórico das etapas"):
-        render_challenge_history(
-            selected_challenge,
-            target_odd,
-            start_bank,
-            max_stages,
-        )
-
-    with st.expander("Projeção completa até à etapa 15"):
-        render_challenge_projection(
-            selected_challenge,
-            target_odd,
-            start_bank,
-            max_stages,
-        )
-
-    with st.expander("Regras"):
-        st.markdown(
-            f"""
-- **Banca inicial:** {euro(start_bank)}
-- **Etapas:** {max_stages}
-- **Reinvestimento:** retorno total da etapa ganha
-- **Perda:** encerra apenas o desafio selecionado
-            """
-        )
-
-    note("Projeções matemáticas; não garantem resultados.")
-    footer()
-
-def admin_login() -> bool:
-    configured_password = secret_value("ADMIN_PASSWORD")
-
-    if not configured_password:
-        st.warning(
-            "O painel privado ainda não tem palavra-passe configurada. "
-            "Adiciona ADMIN_PASSWORD nos Secrets do Streamlit."
-        )
-        with st.expander("Ver exemplo dos Secrets"):
-            st.code(
-                'ADMIN_PASSWORD = "escreve-aqui-uma-palavra-passe-forte"',
-                language="toml",
-            )
         return False
 
-    if st.session_state.get("admin_authenticated"):
-        return True
 
-    st.markdown("### 🔐 Entrada reservada")
-    with st.form("admin_login_form"):
-        password = st.text_input("Palavra-passe", type="password")
-        submitted = st.form_submit_button("Entrar", use_container_width=True)
+def render_players_page() -> None:
+    section_title("Jogadores", "Médias e acumulados individuais da época 2026/27")
 
-    if submitted:
-        if hmac.compare_digest(password, configured_password):
-            st.session_state["admin_authenticated"] = True
-            st.session_state["admin_challenges_data"] = clone_data(load_challenges_file())
-            st.rerun()
-        else:
-            st.error("Palavra-passe incorreta.")
-
-    return False
-
-
-def get_group_and_challenge(
-    data: dict,
-    odd: float,
-    challenge_name: str,
-) -> tuple[dict, dict]:
-    group = next(
-        group
-        for group in data["grupos"]
-        if abs(float(group.get("odd", 0)) - float(odd)) < 0.001
-    )
-    challenge = next(
-        challenge
-        for challenge in group["desafios"]
-        if str(challenge.get("nome")) == challenge_name
-    )
-    return group, challenge
-
-
-def previous_stages_are_won(challenge: dict, stage: int) -> bool:
-    bets = challenge_bets(challenge)
-    for previous in range(1, stage):
-        bet = bets.get(previous)
-        if not bet or result_key(bet.get("resultado")) != "won":
-            return False
-    return True
-
-
-def upsert_bet(challenge: dict, new_bet: dict) -> None:
-    stage = int(new_bet["etapa"])
-    updated = [
-        bet
-        for bet in challenge.get("apostas", [])
-        if int(bet.get("etapa", 0)) != stage
-    ]
-    updated.append(new_bet)
-    challenge["apostas"] = sorted(updated, key=lambda item: int(item["etapa"]))
-
-
-def github_settings() -> tuple[str, str, str, str]:
-    return (
-        secret_value("GITHUB_TOKEN"),
-        secret_value("GITHUB_REPO"),
-        secret_value("GITHUB_BRANCH") or "main",
-        secret_value("GITHUB_FILE_PATH") or "desafios.json",
-    )
-
-
-def publish_to_github(data: dict) -> tuple[bool, str]:
-    token, repository, branch, file_path = github_settings()
-
-    if not token or not repository:
-        return (
-            False,
-            "Faltam GITHUB_TOKEN e/ou GITHUB_REPO nos Secrets do Streamlit.",
+    if not _player_table_available():
+        st.info(
+            "A estrutura de jogadores ainda não foi criada na base pública. "
+            "Executa season_sync.py com acesso de escrita à base e volta a publicar/sincronizar."
         )
-
-    api_url = f"https://api.github.com/repos/{repository}/contents/{file_path}"
-    headers = {
-        "Accept": "application/vnd.github+json",
-        "Authorization": f"Bearer {token}",
-        "X-GitHub-Api-Version": "2022-11-28",
-    }
-
-    try:
-        current = requests.get(
-            api_url,
-            headers=headers,
-            params={"ref": branch},
-            timeout=20,
-        )
-    except requests.RequestException as error:
-        return False, f"Não foi possível contactar o GitHub: {error}"
-
-    if current.status_code != 200:
-        return (
-            False,
-            f"Não foi possível ler o ficheiro no GitHub ({current.status_code}). "
-            "Confirma o repositório, o ramo e as permissões do token.",
-        )
-
-    sha = current.json().get("sha")
-    payload_data = clone_data(data)
-    payload_data["ultima_atualizacao"] = datetime.now().strftime("%d/%m/%Y %H:%M")
-    encoded = base64.b64encode(
-        json.dumps(payload_data, ensure_ascii=False, indent=2).encode("utf-8")
-    ).decode("ascii")
-
-    payload = {
-        "message": "Atualizar desafios pelo painel DidAnalyze",
-        "content": encoded,
-        "branch": branch,
-        "sha": sha,
-    }
-
-    try:
-        response = requests.put(
-            api_url,
-            headers=headers,
-            json=payload,
-            timeout=25,
-        )
-    except requests.RequestException as error:
-        return False, f"Não foi possível publicar no GitHub: {error}"
-
-    if response.status_code not in {200, 201}:
-        detail = response.json().get("message", "Erro desconhecido")
-        return False, f"Publicação recusada pelo GitHub: {detail}"
-
-    st.session_state["admin_challenges_data"] = payload_data
-    return True, "Alterações publicadas. O Streamlit deverá atualizar o site após o novo commit."
-
-
-def admin_dashboard(data: dict) -> None:
-    summaries = all_challenge_summaries(data)
-    active = sum(item["status"] == "Em curso" for item in summaries)
-    completed = sum(item["status"] == "Concluído" for item in summaries)
-    failed = sum(item["status"] == "Falhado" for item in summaries)
-    current_total = sum(float(item["current_bank"]) for item in summaries)
-
-    stat_cards(
-        [
-            ("Em curso", str(active), "desafios ativos"),
-            ("Concluídos", str(completed), "sequências completas"),
-            ("Falhados", str(failed), "sequências encerradas"),
-            ("Banca atual", euro(current_total), "total calculado"),
-        ]
-    )
-
-
-def render_admin_page() -> None:
-    section_title("Administração dos desafios")
-
-    if not admin_login():
         return
 
-    if "admin_challenges_data" not in st.session_state:
-        st.session_state["admin_challenges_data"] = clone_data(load_challenges_file())
+    with get_connection() as conn:
+        leagues = conn.execute(
+            """
+            SELECT DISTINCT l.id,l.name,l.country
+            FROM leagues l
+            JOIN teams t ON t.league_id=l.id
+            JOIN player_match_stats pms ON pms.team_id=t.id AND pms.season=?
+            ORDER BY l.name
+            """,
+            (SEASON,),
+        ).fetchall()
 
-    data = st.session_state["admin_challenges_data"]
-    start_bank = float(data.get("banca_inicial", 1.0))
-    max_stages = int(data.get("max_etapas", 15))
+    if not leagues:
+        st.info("Ainda não existem estatísticas individuais carregadas para 2026/27.")
+        return
 
-    top_left, top_right = st.columns([4, 1])
-    with top_left:
-        st.success("Sessão privada iniciada.")
-    with top_right:
-        if st.button("Terminar sessão", use_container_width=True):
-            st.session_state.pop("admin_authenticated", None)
-            st.session_state.pop("admin_challenges_data", None)
-            st.rerun()
+    league_labels = [f"{row['name']} · {row['country']}" for row in leagues]
+    league_label = st.selectbox("Competição", league_labels, key="players_league")
+    league = leagues[league_labels.index(league_label)]
+    league_id = int(league["id"])
 
-    admin_dashboard(data)
-    st.divider()
+    with get_connection() as conn:
+        teams = conn.execute(
+            """
+            SELECT DISTINCT t.id,t.name
+            FROM teams t
+            JOIN player_match_stats pms ON pms.team_id=t.id AND pms.season=?
+            WHERE t.league_id=?
+            ORDER BY t.name
+            """,
+            (SEASON, league_id),
+        ).fetchall()
 
-    odds = [float(group.get("odd", 0)) for group in data["grupos"]]
-    odd = st.selectbox(
-        "Grupo de odd",
-        odds,
-        format_func=lambda value: f"Odd {odd_text(value)}",
-    )
-    selected_group = next(
-        group for group in data["grupos"]
-        if abs(float(group.get("odd", 0)) - odd) < 0.001
-    )
+    team_options = ["Todas as equipas"] + [row["name"] for row in teams]
+    team_name = st.selectbox("Equipa", team_options, key="players_team")
+    team_id = None
+    if team_name != "Todas as equipas":
+        team_id = int(next(row["id"] for row in teams if row["name"] == team_name))
 
-    challenge_names = [
-        str(challenge.get("nome", "Desafio"))
-        for challenge in selected_group.get("desafios", [])
+    params = [SEASON, league_id]
+    team_sql = ""
+    if team_id is not None:
+        team_sql = " AND pms.team_id=?"
+        params.append(team_id)
+
+    with get_connection() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT
+                p.id AS player_id,
+                p.name,
+                COALESCE(p.position,'—') AS position,
+                t.name AS team,
+                COUNT(DISTINCT pms.match_id) AS apps,
+                SUM(COALESCE(pms.started,0)) AS starts,
+                ROUND(SUM(COALESCE(pms.minutes,0)),0) AS minutes,
+                ROUND(AVG(CASE WHEN pms.rating IS NOT NULL THEN pms.rating END),2) AS avg_rating,
+                SUM(COALESCE(pms.goals,0)) AS goals,
+                SUM(COALESCE(pms.assists,0)) AS assists,
+                ROUND(SUM(COALESCE(pms.xg,0)),2) AS xg,
+                ROUND(SUM(COALESCE(pms.xa,0)),2) AS xa,
+                SUM(COALESCE(pms.shots,0)) AS shots,
+                SUM(COALESCE(pms.shots_on_target,0)) AS shots_on_target,
+                SUM(COALESCE(pms.key_passes,0)) AS key_passes,
+                SUM(COALESCE(pms.passes_total,0)) AS passes_total,
+                SUM(COALESCE(pms.passes_accurate,0)) AS passes_accurate,
+                SUM(COALESCE(pms.tackles,0)) AS tackles,
+                SUM(COALESCE(pms.interceptions,0)) AS interceptions,
+                SUM(COALESCE(pms.saves,0)) AS saves
+            FROM player_match_stats pms
+            JOIN players p ON p.id=pms.player_id
+            JOIN teams t ON t.id=pms.team_id
+            WHERE pms.season=? AND t.league_id=? {team_sql}
+            GROUP BY p.id,p.name,p.position,t.name
+            ORDER BY CASE WHEN avg_rating IS NULL THEN 1 ELSE 0 END, avg_rating DESC, minutes DESC
+            """,
+            tuple(params),
+        ).fetchall()
+
+    if not rows:
+        st.info("Não há jogadores com estatísticas nesta seleção.")
+        return
+
+    data = pd.DataFrame([dict(row) for row in rows])
+    numeric = [
+        "apps", "starts", "minutes", "avg_rating", "goals", "assists", "xg", "xa",
+        "shots", "shots_on_target", "key_passes", "passes_total", "passes_accurate",
+        "tackles", "interceptions", "saves",
     ]
-    challenge_name = st.selectbox("Desafio", challenge_names)
-    _, challenge = get_group_and_challenge(data, odd, challenge_name)
-    summary = challenge_summary(challenge, odd, start_bank, max_stages)
-    bets = challenge_bets(challenge)
+    for column in numeric:
+        data[column] = pd.to_numeric(data[column], errors="coerce").fillna(0)
 
+    data["g+a"] = data["goals"] + data["assists"]
+    data["passes_%"] = data.apply(
+        lambda row: (100.0 * row["passes_accurate"] / row["passes_total"]) if row["passes_total"] else 0.0,
+        axis=1,
+    )
+    for source, target in [
+        ("shots", "remates/90"),
+        ("key_passes", "passes-chave/90"),
+        ("tackles", "desarmes/90"),
+        ("interceptions", "interceções/90"),
+        ("saves", "defesas/90"),
+    ]:
+        data[target] = data.apply(
+            lambda row, source=source: (90.0 * row[source] / row["minutes"]) if row["minutes"] else 0.0,
+            axis=1,
+        )
+
+    rated = data[data["avg_rating"] > 0].copy()
+    best = rated.iloc[0] if not rated.empty else data.iloc[0]
+    scorer = data.sort_values(["goals", "minutes"], ascending=[False, False]).iloc[0]
+    creator = data.sort_values(["assists", "key_passes"], ascending=[False, False]).iloc[0]
+    most_used = data.sort_values("minutes", ascending=False).iloc[0]
     stat_cards(
         [
-            ("Estado", summary["status"], f"{summary['won']} etapas ganhas"),
-            ("Banca atual", euro(summary["current_bank"]), "valor acumulado"),
-            ("Próxima etapa", str(summary["current_stage"]), f"máximo de {max_stages}"),
-            ("Objetivo final", euro(summary["final_target"]), f"odd {odd_text(odd)}"),
+            ("Melhor média", str(best["name"]), f"{best['avg_rating']:.2f}" if best["avg_rating"] else "—"),
+            ("Mais golos", str(scorer["name"]), f"{int(scorer['goals'])}"),
+            ("Mais assistências", str(creator["name"]), f"{int(creator['assists'])}"),
+            ("Mais minutos", str(most_used["name"]), f"{int(most_used['minutes'])}"),
         ]
     )
 
-    existing_stages = sorted(bets)
-    default_stage = summary["current_stage"]
-    stage = st.selectbox(
-        "Etapa a editar",
-        list(range(1, max_stages + 1)),
-        index=max(0, min(max_stages - 1, default_stage - 1)),
+    section_title("Ranking da época", "Média por jogo e produção por 90 minutos")
+    display = data[[
+        "name", "team", "position", "apps", "starts", "minutes", "avg_rating",
+        "goals", "assists", "g+a", "xg", "xa", "remates/90", "passes-chave/90",
+        "passes_%", "desarmes/90", "interceções/90", "defesas/90",
+    ]].copy()
+    display.columns = [
+        "Jogador", "Equipa", "Pos.", "Jogos", "Titular", "Min.", "Nota média",
+        "Golos", "Assist.", "G+A", "xG", "xA", "Remates/90", "Passes-chave/90",
+        "Passes %", "Desarmes/90", "Interceções/90", "Defesas/90",
+    ]
+    st.dataframe(
+        display,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "Nota média": st.column_config.NumberColumn(format="%.2f"),
+            "xG": st.column_config.NumberColumn(format="%.2f"),
+            "xA": st.column_config.NumberColumn(format="%.2f"),
+            "Remates/90": st.column_config.NumberColumn(format="%.2f"),
+            "Passes-chave/90": st.column_config.NumberColumn(format="%.2f"),
+            "Passes %": st.column_config.NumberColumn(format="%.1f%%"),
+            "Desarmes/90": st.column_config.NumberColumn(format="%.2f"),
+            "Interceções/90": st.column_config.NumberColumn(format="%.2f"),
+            "Defesas/90": st.column_config.NumberColumn(format="%.2f"),
+        },
     )
-    existing = bets.get(stage, {})
-    current_result = str(existing.get("resultado") or "pendente").lower()
-    if current_result not in RESULT_OPTIONS:
-        current_result = "pendente"
 
-    existing_combined = combined_odd(existing, odd) if existing else odd
-    existing_count = len(normalize_selections(existing))
-
-    st.markdown("### Registar ou corrigir acumulador")
-    st.caption(
-        "Cada linha representa uma seleção do mesmo acumulador. "
-        "Usa o botão «+» no fim da tabela para juntar mais jogos ou mercados."
-    )
-
-    if existing:
-        stat_cards(
-            [
-                (
-                    "Seleções atuais",
-                    str(existing_count),
-                    "dentro desta etapa",
-                ),
-                (
-                    "Odd combinada atual",
-                    odd_text(existing_combined),
-                    f"objetivo do grupo: {odd_text(odd)}",
-                ),
-                (
-                    "Valor da etapa",
-                    euro(stage_financials(challenge, odd, start_bank, max_stages)[stage - 1]["stake"]),
-                    "banca a reinvestir",
-                ),
-                (
-                    "Retorno potencial",
-                    euro(
-                        stage_financials(
-                            challenge,
-                            odd,
-                            start_bank,
-                            max_stages,
-                        )[stage - 1]["stake"] * existing_combined
-                    ),
-                    "pela odd combinada",
-                ),
-            ]
-        )
-
-    editor_rows = editor_rows_for_bet(existing, odd)
-    editor_frame = pd.DataFrame(editor_rows)
-
-    with st.form(f"challenge_accumulator_form_{odd}_{challenge_name}_{stage}"):
-        bookmaker = st.text_input(
-            "Casa de apostas",
-            value=str(existing.get("casa_apostas") or ""),
-            placeholder="Opcional",
-        )
-
-        edited_selections = st.data_editor(
-            editor_frame,
-            num_rows="dynamic",
-            hide_index=True,
-            use_container_width=True,
-            column_config={
-                "Competição": st.column_config.TextColumn(
-                    "Competição",
-                    help="Ex.: Liga Portugal",
-                ),
-                "Jogo": st.column_config.TextColumn(
-                    "Jogo",
-                    help="Ex.: Benfica x Porto",
-                ),
-                "Seleção / mercado": st.column_config.TextColumn(
-                    "Seleção / mercado",
-                    help="Ex.: Mais de 1,5 golos",
-                ),
-                "Data": st.column_config.TextColumn(
-                    "Data",
-                    help="Formato recomendado: AAAA-MM-DD",
-                ),
-                "Hora": st.column_config.TextColumn(
-                    "Hora",
-                    help="Formato recomendado: HH:MM",
-                ),
-                "Odd": st.column_config.NumberColumn(
-                    "Odd",
-                    min_value=1.01,
-                    max_value=100.0,
-                    step=0.01,
-                    format="%.2f",
-                ),
-            },
-            key=f"accumulator_editor_{odd}_{challenge_name}_{stage}",
-        )
-
-        result = st.selectbox(
-            "Resultado do acumulador completo",
-            RESULT_OPTIONS,
-            index=RESULT_OPTIONS.index(current_result),
-            help=(
-                "Marca «ganho» apenas quando todas as seleções vencerem. "
-                "Se uma seleção perder, o acumulador é «perdido»."
+    section_title("Evolução de um jogador", "Nota jogo a jogo")
+    player_names = data.sort_values("name")["name"].tolist()
+    selected_name = st.selectbox("Jogador", player_names, key="player_detail")
+    selected_id = int(data.loc[data["name"] == selected_name, "player_id"].iloc[0])
+    with get_connection() as conn:
+        form = conn.execute(
+            """
+            SELECT m.match_date,
+                   th.name AS home, ta.name AS away,
+                   pms.minutes,pms.rating,pms.goals,pms.assists
+            FROM player_match_stats pms
+            JOIN matches m ON m.id=pms.match_id
+            JOIN teams th ON th.id=m.home_team_id
+            JOIN teams ta ON ta.id=m.away_team_id
+            WHERE pms.player_id=? AND pms.season=?
+            ORDER BY m.match_date,m.match_time
+            """,
+            (selected_id, SEASON),
+        ).fetchall()
+    if form:
+        form_df = pd.DataFrame([dict(row) for row in form])
+        form_df["Jogo"] = form_df["home"] + " × " + form_df["away"]
+        form_df["rating"] = pd.to_numeric(form_df["rating"], errors="coerce")
+        chart_df = form_df.dropna(subset=["rating"])[["match_date", "rating"]].set_index("match_date")
+        if not chart_df.empty:
+            st.line_chart(chart_df, y="rating")
+        st.dataframe(
+            form_df[["match_date", "Jogo", "minutes", "rating", "goals", "assists"]].rename(
+                columns={"match_date":"Data","minutes":"Min.","rating":"Nota","goals":"Golos","assists":"Assist."}
             ),
-        )
-
-        note_text = st.text_area(
-            "Nota",
-            value=str(existing.get("nota") or ""),
-            placeholder="Informação opcional sobre o acumulador.",
-        )
-
-        save = st.form_submit_button(
-            "Guardar acumulador no painel",
-            type="primary",
             use_container_width=True,
+            hide_index=True,
         )
 
-    if save:
-        is_existing = stage in bets
-        selections, selection_errors = selections_from_editor(edited_selections)
 
-        if selection_errors:
-            for error in selection_errors:
-                st.error(error)
-        elif summary["lost"] and not is_existing:
-            st.error(
-                "Este desafio está falhado. Reinicia o desafio antes de adicionar uma nova etapa."
-            )
-        elif not is_existing and stage != summary["current_stage"]:
-            st.error(
-                f"A próxima etapa permitida é a {summary['current_stage']}. "
-                "Não é possível saltar etapas."
-            )
-        elif stage > 1 and not previous_stages_are_won(challenge, stage):
-            st.error("Todas as etapas anteriores têm de estar marcadas como ganhas.")
-        else:
-            calculated_odd = float(prod(item["odd"] for item in selections))
-            new_bet = {
-                "etapa": int(stage),
-                "casa_apostas": bookmaker.strip(),
-                "selecoes": selections,
-                "odd_combinada": round(calculated_odd, 4),
-                "resultado": result,
-                "nota": note_text.strip(),
-                "atualizado_em": datetime.now().isoformat(timespec="seconds"),
-            }
-            upsert_bet(challenge, new_bet)
-            data["ultima_atualizacao"] = datetime.now().strftime("%d/%m/%Y %H:%M")
-            st.session_state["admin_challenges_data"] = data
-
-            difference = calculated_odd - float(odd)
-            if calculated_odd < float(odd):
-                st.warning(
-                    f"Acumulador guardado com odd {odd_text(calculated_odd)}, "
-                    f"abaixo do objetivo {odd_text(odd)} por {abs(difference):.2f}."
-                )
-            else:
-                st.success(
-                    f"Acumulador guardado com {len(selections)} seleções e "
-                    f"odd combinada {odd_text(calculated_odd)}. "
-                    "Publica no GitHub para atualizar o site."
-                )
-            st.rerun()
-
-    st.divider()
-    st.markdown("### Ferramentas do desafio")
-
-    tool_col1, tool_col2 = st.columns(2)
-    with tool_col1:
-        delete_confirm = st.checkbox(
-            f"Confirmo que quero eliminar a etapa {stage}",
-            key=f"delete_confirm_{odd}_{challenge_name}_{stage}",
-        )
-        if st.button(
-            "Eliminar esta etapa",
-            disabled=not delete_confirm or stage not in existing_stages,
-            use_container_width=True,
-        ):
-            challenge["apostas"] = [
-                bet for bet in challenge.get("apostas", [])
-                if int(bet.get("etapa", 0)) != int(stage)
-            ]
-            st.session_state["admin_challenges_data"] = data
-            st.success("Etapa eliminada nesta sessão.")
-            st.rerun()
-
-    with tool_col2:
-        reset_confirm = st.checkbox(
-            "Confirmo que quero reiniciar todo este desafio",
-            key=f"reset_confirm_{odd}_{challenge_name}",
-        )
-        if st.button(
-            "Reiniciar desafio em 1 €",
-            disabled=not reset_confirm,
-            use_container_width=True,
-        ):
-            challenge["apostas"] = []
-            st.session_state["admin_challenges_data"] = data
-            st.success("Desafio reiniciado nesta sessão.")
-            st.rerun()
-
-    st.divider()
-    st.markdown("### Publicar e guardar")
-
-    json_bytes = json.dumps(
-        data,
-        ensure_ascii=False,
-        indent=2,
-    ).encode("utf-8")
-
-    action_col1, action_col2, action_col3 = st.columns(3)
-
-    with action_col1:
-        st.download_button(
-            "Descarregar backup JSON",
-            data=json_bytes,
-            file_name="desafios.json",
-            mime="application/json",
-            use_container_width=True,
-        )
-
-    with action_col2:
-        if st.button("Recarregar versão publicada", use_container_width=True):
-            st.session_state["admin_challenges_data"] = clone_data(load_challenges_file())
-            st.success("Foi reposta a versão atualmente publicada no site.")
-            st.rerun()
-
-    with action_col3:
-        if st.button(
-            "Publicar alterações no site",
-            type="primary",
-            use_container_width=True,
-        ):
-            success, message = publish_to_github(data)
-            if success:
-                st.success(message)
-            else:
-                st.error(message)
-
-    token, repository, branch, file_path = github_settings()
-    if token and repository:
-        st.caption(
-            f"Publicação automática configurada para {repository} · "
-            f"ramo {branch} · ficheiro {file_path}."
-        )
-    else:
-        st.info(
-            "A publicação automática ainda não está configurada. "
-            "Podes descarregar o JSON e substituí-lo manualmente no GitHub, "
-            "ou adicionar GITHUB_TOKEN e GITHUB_REPO aos Secrets."
-        )
-
-    with st.expander("Configuração necessária para publicar diretamente"):
-        st.code(
-            """ADMIN_PASSWORD = "uma-palavra-passe-forte"
-GITHUB_TOKEN = "token-criado-no-github"
-GITHUB_REPO = "UTILIZADOR/NOME-DO-REPOSITORIO"
-GITHUB_BRANCH = "main"
-GITHUB_FILE_PATH = "desafios.json"
-""",
-            language="toml",
-        )
-        st.write(
-            "O token deve ser colocado apenas nos Secrets do Streamlit. "
-            "Nunca deve ser escrito no app.py, no GitHub ou enviado a terceiros."
-        )
-
-    st.divider()
-    section_title("Pré-visualização")
-    render_challenge_table(challenge, odd, start_bank, max_stages)
-
-
-with st.sidebar:
-    if st.session_state.get("show_admin"):
-        if st.button("← Voltar ao site", use_container_width=True):
-            st.session_state["show_admin"] = False
-            st.rerun()
-    else:
-        if st.button("🔐 Administração", use_container_width=True):
-            st.session_state["show_admin"] = True
-            st.rerun()
-
-if st.session_state.get("show_admin"):
-    render_admin_page()
-    st.stop()
-
-st.markdown('<div class="challenge-nav">', unsafe_allow_html=True)
 active_area = st.radio(
     "Área pública",
-    ["Prognósticos", "Desafios"],
+    ["Prognósticos", "Jogadores"],
     horizontal=True,
     label_visibility="collapsed",
 )
-st.markdown("</div>", unsafe_allow_html=True)
 
-if active_area == "Desafios":
-    render_challenges_page()
+if active_area == "Jogadores":
+    render_players_page()
+    footer()
     st.stop()
 
 page_intro()
 picker_header()
-
-
 def matrix_probability(matrix, predicate) -> float:
     return sum(float(probability) for score, probability in matrix.items() if predicate(*score))
 
